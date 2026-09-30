@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer } from 'react'
 import { AppContext } from './context'
-import { approveBooking, cancelStationSession, createUser, getBookings, getSessions, listStations, pauseStationSession, rejectBooking, resumeStationSession, reverseStationSession, staffLogin, startStationSession, stopStationSession, submitBooking } from '../services/api'
+import { approveBooking, cancelStationSession, createUser, getBookings, getShopSettings, getSessions, listStations, pauseStationSession, rejectBooking, resumeStationSession, reverseStationSession, staffLogin, startStationSession, stopStationSession, submitBooking, updateShopSettings } from '../services/api'
 import { formatBirr } from '../utils/currency'
 
 function storedRemoteReservations() {
@@ -48,6 +48,7 @@ const initialState = {
   hardware: [],
   remoteReservations: storedRemoteReservations(),
   users: [],
+  shop: { name: 'Game Zone', phone: '', address: '', rates: { ps4: 0.12, ps5: 0.18, vip: 0.25, other: 0.1 } },
 }
 
 function reducer(state, action) {
@@ -55,6 +56,7 @@ function reducer(state, action) {
   switch (action.type) {
     case 'ROUTE': return { ...state, route: action.route }
     case 'SYNC_STATIONS': return { ...state, stations: action.stations }
+    case 'SHOP': return { ...state, shop: action.shop }
     case 'LOGIN': return { ...state, authenticated: true, user: action.user, role: action.role, loginAttempts: 0, lockoutUntil: null, locked: false }
     case 'LOGIN_FAILED': {
       const attempts = state.loginAttempts + 1
@@ -186,8 +188,9 @@ export function AppProvider({ children }) {
         window.localStorage.setItem('playstation-game-zone-token', token)
         window.localStorage.setItem('token', token)
         window.localStorage.setItem('authToken', token)
-        const bookings = await getBookings()
+        const [bookings, shopResult] = await Promise.all([getBookings(), getShopSettings()])
         dispatch({ type: 'SYNC_REMOTE_RESERVATIONS', reservations: bookings.bookings || [] })
+        dispatch({ type: 'SHOP', shop: shopResult.shop })
         const role = String(result.user.role || '').trim().toLowerCase()
         if (!['admin', 'cashier'].includes(role)) {
           throw new Error('Your account does not have an authorized staff role.')
@@ -219,11 +222,12 @@ export function AppProvider({ children }) {
     },
     startSession: async (id, sessionType, details = {}) => {
       const station = state.stations.find((item) => item.id === id)
-      const pricePerMinute = station?.type === 'PlayStation 5' ? state.pricing.ps5 : state.pricing.ps4
+      const hourlyRates = state.shop?.rates || {}
+      const hourlyRate = station?.type === 'PlayStation 5' ? hourlyRates.ps5 : hourlyRates.ps4
       const result = await startStationSession({
         stationName: station?.name || id,
         sessionType,
-        hourlyRate: Number(pricePerMinute) * 60,
+        hourlyRate: Number(hourlyRate) || Number(state.pricing.ps4) * 60,
         ...details
       })
       dispatch({ type: 'START', id, sessionType, sessionInfo: result.session, ...details })
@@ -271,6 +275,11 @@ export function AppProvider({ children }) {
     repayCredit: (id, customer, amount) => dispatch({ type: 'REPAY', id, customer, amount }),
     clearNotifications: () => dispatch({ type: 'CLEAR_NOTIFICATIONS' }),
     updatePricing: (pricing) => dispatch({ type: 'PRICING', pricing }),
+    saveShopSettings: async (settings) => {
+      const result = await updateShopSettings(settings)
+      dispatch({ type: 'SHOP', shop: result.shop })
+      return result.shop
+    },
     closeShift: (actualCash) => dispatch({ type: 'SHIFT_CLOSE', actualCash: Number(actualCash) }),
     addRemoteReservation: async (reservation) => {
       const result = await submitBooking(reservation)

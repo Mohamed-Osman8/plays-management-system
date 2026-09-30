@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import { createProduct, deleteProduct, listProducts, sellProduct, updateProduct } from '../controllers/productController.js'
 import { verifyAdmin, verifyCashierOrAdmin, verifyStaff } from '../middleware/authMiddleware.js'
+import { verifyLicense } from '../middleware/license.js'
 
 const router = Router()
-router.use(verifyStaff, verifyCashierOrAdmin)
+router.use(verifyStaff, verifyLicense, verifyCashierOrAdmin)
 router.get('/', listProducts)
 router.post('/', verifyAdmin, createProduct)
 router.post('/sell', sellProduct)

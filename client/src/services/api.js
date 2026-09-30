@@ -179,6 +179,14 @@ export function getDashboardSummary(filters = {}) {
   return request(`/dashboard/summary${query.size ? `?${query}` : ''}`)
 }
 
+export function getShopSettings() {
+  return request('/shop')
+}
+
+export function updateShopSettings(settings) {
+  return request('/shop', { method: 'PUT', body: JSON.stringify(settings) })
+}
+
 export function listMemberships() {
   return request('/memberships')
 }

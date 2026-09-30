@@ -142,6 +142,9 @@ select:focus, input:focus { border-color: var(--lime); }
 .quick-panel { display: grid; align-content: start; gap: 12px; }.quick-panel h3 { margin-bottom: 8px; }.quick-panel button { display: flex; justify-content: space-between; padding: 12px 13px; border: 1px solid var(--line); border-radius: 5px; color: var(--text); background: var(--panel-2); text-align: left; font-size: .72rem; }.quick-panel button span { color: var(--lime); }
 .page-footer { display: flex; justify-content: space-between; padding: 26px 0 5px; color: #596472; font-size: .6rem; letter-spacing: .1em; }.page-footer span { letter-spacing: 0; }
 .product-image-preview { display: grid; grid-template-columns: 76px 1fr; grid-template-rows: auto auto; align-items: center; gap: 4px 12px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--text); font-size: .75rem; }
+.shop-settings-form { margin-bottom: 16px; padding: 22px; }
+.shop-settings-form .form-grid { margin-bottom: 16px; }
+.shop-settings-form .wide { grid-column: 1 / -1; }
 .product-image-preview img { grid-row: span 2; width: 76px; height: 64px; border-radius: 5px; object-fit: cover; background: linear-gradient(135deg, #193842, #28352d); }
 .product-image-preview small { color: var(--muted); font-size: .63rem; }
 .inventory-product { display: flex; align-items: center; gap: 9px; }
@@ -149,6 +152,17 @@ select:focus, input:focus { border-color: var(--lime); }
 .product-visual { position: relative; display: grid; place-items: center; height: 96px; overflow: hidden; border-radius: 5px; background: linear-gradient(135deg, #193842, #28352d); }
 .product-visual img { width: 100%; height: 100%; object-fit: cover; }
 .product-visual i { position: absolute; color: white; font-style: normal; font-size: 1.7rem; text-shadow: 0 2px 8px #000; }
+.game-card { display: grid; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.game-card:hover { transform: translateY(-4px); border-color: var(--game-accent); box-shadow: 0 14px 35px #0004; }
+.game-card-visual { display: grid; place-items: center; position: relative; min-height: 150px; overflow: hidden; border-radius: 7px; color: var(--game-accent); font: 700 4rem/1 'Space Grotesk'; }
+.game-card-visual::after { position: absolute; inset: 0; content: ''; background: linear-gradient(125deg, transparent 30%, #fff2 50%, transparent 70%); transform: translateX(-100%); transition: transform .5s ease; }
+.game-card:hover .game-card-visual::after { transform: translateX(100%); }
+.game-card-visual small { position: absolute; right: 10px; bottom: 9px; color: #fff; font: 600 .62rem/1 'Space Grotesk'; letter-spacing: .08em; text-transform: uppercase; }
+.game-card-body { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.game-card-body h3 { margin: 0; font-size: .9rem; }
+.game-card-body p { margin: 5px 0 0; color: var(--muted); font-size: .65rem; }
+.game-rating { color: var(--game-accent); font-size: .7rem; white-space: nowrap; }
+.game-card-button { width: 100%; min-height: 34px; }
 .table-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }.table-header, .table-row { display: grid; grid-template-columns: 1.3fr 1.2fr 1fr .8fr .8fr .9fr; align-items: center; gap: 15px; padding: 15px 18px; border-bottom: 1px solid var(--line); font-size: .72rem; }.table-header { color: var(--muted); font-size: .6rem; text-transform: uppercase; letter-spacing: .08em; }.table-row:last-child { border: 0; }.table-row span { color: var(--muted); }.table-row strong { font-weight: 600; }.table-row .text-button { text-align: left; }.negative { color: var(--red); }
 .pos-layout { display: grid; grid-template-columns: 1.4fr .8fr; gap: 16px; }.product-picker, .checkout, .reservation-card { padding: 21px; }.product-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }.product-grid button { display: grid; gap: 7px; padding: 15px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); background: var(--panel-2); text-align: left; }.product-grid button:hover { border-color: var(--lime); }.product-grid button span { font-size: 1.6rem; }.product-grid button strong { font-size: .7rem; }.product-grid button small { color: var(--muted); font-size: .6rem; }.checkout { min-height: 270px; }.empty-state { display: grid; place-items: center; min-height: 140px; color: var(--muted); font-size: .72rem; text-align: center; }.checkout-total { display: flex; justify-content: space-between; padding: 14px 0; border-top: 1px solid var(--line); font-size: .75rem; }.checkout-total strong { color: var(--lime); font-size: 1.2rem; }.full-button { width: 100%; }
 .form-grid, .expense-form { display: grid; gap: 14px; }.form-grid { grid-template-columns: repeat(2, 1fr); margin: 20px 0; }.form-grid label, .expense-form label { display: grid; gap: 7px; color: var(--muted); font-size: .65rem; }.expense-form { grid-template-columns: 1.5fr 1fr .8fr auto; align-items: end; margin-bottom: 18px; padding: 20px; }.expense-form input, .expense-form select { width: 100%; }.settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }.settings-card { min-height: 190px; padding: 22px; }.settings-card p { max-width: 450px; margin: 14px 0 20px; color: var(--muted); font-size: .78rem; line-height: 1.7; }

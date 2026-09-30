@@ -1,10 +1,10 @@
 import { Router } from 'express'
-import { getFinancialReport } from '../controllers/reportController.js'
+import { getShopSettings, updateShopSettings } from '../controllers/shopController.js'
 import { verifyAdmin, verifyStaff } from '../middleware/authMiddleware.js'
 import { verifyLicense } from '../middleware/license.js'
 
 const router = Router()
-router.use(verifyStaff, verifyLicense, verifyAdmin)
-router.get('/financial', getFinancialReport)
-
+router.use(verifyStaff, verifyLicense)
+router.get('/', getShopSettings)
+router.put('/', verifyAdmin, updateShopSettings)
 export default router
