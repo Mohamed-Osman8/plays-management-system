@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { tenantPlugin } from '../config/tenantContext.js'
 
 const membershipSchema = new mongoose.Schema(
   {
@@ -17,5 +18,6 @@ const membershipSchema = new mongoose.Schema(
 )
 
 membershipSchema.index({ expiresAt: 1, status: 1 })
+membershipSchema.plugin(tenantPlugin)
 
 export default mongoose.model('Membership', membershipSchema)

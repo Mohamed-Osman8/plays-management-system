@@ -8,7 +8,12 @@ const defaultShop = {
 
 export async function getShopSettings(_req, res, next) {
   try {
-    const shop = await Shop.findOneAndUpdate({}, { $setOnInsert: defaultShop }, { new: true, upsert: true, setDefaultsOnInsert: true })
+    const filter = _req.user?.shopId ? { _id: _req.user.shopId } : { ownerUsername: { $exists: false } }
+    const shop = await Shop.findOneAndUpdate(
+      filter,
+      { $setOnInsert: defaultShop },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    )
     return res.json({ shop })
   } catch (error) {
     return next(error)
@@ -31,7 +36,12 @@ export async function updateShopSettings(req, res, next) {
         }
       }
     }
-    const shop = await Shop.findOneAndUpdate({}, { $set: updates }, { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true })
+    const filter = req.user?.shopId ? { _id: req.user.shopId } : { ownerUsername: { $exists: false } }
+    const shop = await Shop.findOneAndUpdate(
+      filter,
+      { $set: updates },
+      { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+    )
     return res.json({ shop })
   } catch (error) {
     return next(error)

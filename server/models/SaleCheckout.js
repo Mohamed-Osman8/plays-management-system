@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { tenantPlugin } from '../config/tenantContext.js'
 
 const tenderSchema = new mongoose.Schema(
   {
@@ -27,4 +28,5 @@ const saleCheckoutSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+saleCheckoutSchema.plugin(tenantPlugin)
 export default mongoose.model('SaleCheckout', saleCheckoutSchema)

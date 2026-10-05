@@ -3,6 +3,10 @@ import { AppProvider } from './context/AppContext'
 import { useApp } from './context/useApp'
 import Dashboard from './pages/Home'
 import Navbar from './components/Navbar'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import SuperAdmin from './pages/SuperAdmin'
+import DemoMode from './pages/DemoMode'
 import './App.css'
 import './theme.css'
 
@@ -16,7 +20,7 @@ function RouterView() {
 }
 
 function PublicPortal() {
-  const { stations, remoteReservations, addRemoteReservation } = useApp()
+  const { stations, remoteReservations, addRemoteReservation, setRoute } = useApp()
   const available = stations.filter((station) => station.status === 'available')
   const [showStaffLogin, setShowStaffLogin] = useState(false)
   const [form, setForm] = useState({ customer: '', phone: '', consoleType: 'PlayStation 4', stationId: available[0]?.id || '', date: '', time: '' })
@@ -46,7 +50,54 @@ function PublicPortal() {
     : currentBooking?.status === 'Rejected'
       ? 'Codsigaaga lama aqbalin waqtigan. Fadlan dooro waqti ama station kale.'
       : `${confirmation?.customer}, your request for ${confirmation?.stationId} on ${confirmation?.date} at ${confirmation?.time} is waiting for staff approval.`
-  return <main className="public-portal"><header className="public-header"><a className="sidebar-brand" href="#home"><span className="brand-mark">P</span><span>PLAYSTATION<br /><b>GAME ZONE</b></span></a><button className="button button-secondary" type="button" onClick={() => setShowStaffLogin(true)}>Staff portal</button></header><section className="public-hero"><span className="eyebrow">Play from anywhere</span><h1>Book your <span>gaming station</span> remotely.</h1><p>Send a request and our team will approve it. Your confirmation includes a 15-minute arrival grace period.</p></section><section className="public-grid"><form className="panel public-booking-card" onSubmit={submit}><span className="eyebrow">Remote reservation</span><h2>Reserve a station</h2><div className="form-grid"><label>Full name<input value={form.customer} onChange={(event) => setForm({ ...form, customer: event.target.value })} required /></label><label>Phone number<input inputMode="tel" pattern="\+?[0-9 ]{7,18}" placeholder="+252 63..." value={form.phone} onChange={(event) => { if (/^[0-9+ ]*$/.test(event.target.value)) setForm({ ...form, phone: event.target.value }) }} required /></label><label>Console type<select value={form.consoleType} onChange={(event) => { const consoleType = event.target.value; setForm({ ...form, consoleType, stationId: available.find((station) => station.type === consoleType)?.id || '' }) }}><option>PlayStation 4</option><option>PlayStation 5</option></select></label><label>Station<select value={form.stationId} onChange={(event) => setForm({ ...form, stationId: event.target.value })} required>{typedAvailable.length ? typedAvailable.map((station) => <option value={station.id} key={station.id}>{station.name}</option>) : <option value="">No {form.consoleType} stations available</option>}</select></label><label>Date<input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} required /></label><label>Arrival time<input type="time" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} required /></label></div>{error && <small className={error.includes('successfully') ? 'form-success' : 'form-error'} role="status">{error}</small>}<button className="button button-primary" type="submit" disabled={!typedAvailable.length || submitting}>{submitting ? <><span className="spinner" /> Sending...</> : 'Send booking request'}</button></form><div className="panel public-status-card"><span className="eyebrow">Request status</span>{confirmation ? <div className="confirmation-card"><span className="confirmation-check">✓</span><h2>Request received</h2><strong>{confirmation.confirmation}</strong><p className={currentBooking?.status === 'Approved' ? 'acceptance-message' : ''}>{statusMessage}</p><small>Grace period: {confirmation.graceMinutes} minutes after approval.</small>{currentBooking && currentBooking.status !== 'Pending approval' && <b className={`booking-result ${currentBooking.status === 'Approved' ? 'approved' : 'rejected'}`}>{currentBooking.status === 'Approved' ? 'Approved / Confirmed' : currentBooking.status}</b>}</div> : <div className="empty-state">Your request status will appear here after submission.</div>}<div className="availability-list"><h3>Live availability</h3>{stations.map((station) => <div key={station.id}><span>{station.name}</span><b className={`status-pill ${station.status}`}>{station.status === 'available' ? 'Available' : station.status}</b></div>)}</div></div></section><footer className="public-footer">PLAYSTATION GAME ZONE <span>Customer booking portal · Local network service</span></footer>{showStaffLogin && <StaffLoginModal onClose={() => setShowStaffLogin(false)} />}</main>
+  return (
+    <main className="public-portal">
+      <header className="public-header">
+        <a className="sidebar-brand" href="#home">
+          <span className="brand-mark">P</span>
+          <span>PLAYSTATION<br /><b>GAME ZONE</b></span>
+        </a>
+        <span className="public-header-actions">
+          <button className="button button-primary" type="button" onClick={() => setRoute('demo')}>Try Demo Mode Instantly</button>
+          <button className="button button-secondary" type="button" onClick={() => setRoute('register')}>Start 2-Month Free Trial</button>
+          <button className="button button-secondary" type="button" onClick={() => setShowStaffLogin(true)}>Staff portal</button>
+        </span>
+      </header>
+      <section className="public-hero">
+        <span className="eyebrow">PlayStation store management · built for Ethiopia</span>
+        <h1>Run your game zone.<br /><span>All in one place.</span></h1>
+        <p>Manage stations, sessions, inventory, sales and reports from a single, mobile-ready dashboard.</p>
+        <div className="public-hero-actions">
+          <button className="button button-primary" type="button" onClick={() => setRoute('demo')}>Try Demo Mode Instantly →</button>
+          <button className="button button-secondary" type="button" onClick={() => setRoute('register')}>Start your free trial</button>
+        </div>
+        <small>No sign-up or personal information required to explore the demo.</small>
+      </section>
+      <section className="public-grid">
+        <form className="panel public-booking-card" onSubmit={submit}>
+          <span className="eyebrow">Remote reservation</span>
+          <h2>Reserve a station</h2>
+          <div className="form-grid">
+            <label>Full name<input value={form.customer} onChange={(event) => setForm({ ...form, customer: event.target.value })} required /></label>
+            <label>Phone number<input inputMode="tel" pattern="\+?[0-9 ]{7,18}" placeholder="+251 9..." value={form.phone} onChange={(event) => { if (/^[0-9+ ]*$/.test(event.target.value)) setForm({ ...form, phone: event.target.value }) }} required /></label>
+            <label>Console type<select value={form.consoleType} onChange={(event) => { const consoleType = event.target.value; setForm({ ...form, consoleType, stationId: available.find((station) => station.type === consoleType)?.id || '' }) }}><option>PlayStation 4</option><option>PlayStation 5</option></select></label>
+            <label>Station<select value={form.stationId} onChange={(event) => setForm({ ...form, stationId: event.target.value })} required>{typedAvailable.length ? typedAvailable.map((station) => <option value={station.id} key={station.id}>{station.name}</option>) : <option value="">No {form.consoleType} stations available</option>}</select></label>
+            <label>Date<input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} required /></label>
+            <label>Arrival time<input type="time" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} required /></label>
+          </div>
+          {error && <small className={error.includes('successfully') ? 'form-success' : 'form-error'} role="status">{error}</small>}
+          <button className="button button-primary" type="submit" disabled={!typedAvailable.length || submitting}>{submitting ? <><span className="spinner" /> Sending...</> : 'Send booking request'}</button>
+        </form>
+        <div className="panel public-status-card">
+          <span className="eyebrow">Request status</span>
+          {confirmation ? <div className="confirmation-card"><span className="confirmation-check">✓</span><h2>Request received</h2><strong>{confirmation.confirmation}</strong><p className={currentBooking?.status === 'Approved' ? 'acceptance-message' : ''}>{statusMessage}</p><small>Grace period: {confirmation.graceMinutes} minutes after approval.</small>{currentBooking && currentBooking.status !== 'Pending approval' && <b className={`booking-result ${currentBooking.status === 'Approved' ? 'approved' : 'rejected'}`}>{currentBooking.status === 'Approved' ? 'Approved / Confirmed' : currentBooking.status}</b>}</div> : <div className="empty-state">Your request status will appear here after submission.</div>}
+          <div className="availability-list"><h3>Live availability</h3>{stations.map((station) => <div key={station.id}><span>{station.name}</span><b className={`status-pill ${station.status}`}>{station.status === 'available' ? 'Available' : station.status}</b></div>)}</div>
+        </div>
+      </section>
+      <footer className="public-footer">PLAYSTATION GAME ZONE <span><button className="text-button" type="button" onClick={() => setRoute('super-admin')}>Platform administration</button> · Customer booking portal</span></footer>
+      {showStaffLogin && <StaffLoginModal onClose={() => setShowStaffLogin(false)} />}
+    </main>
+  )
 }
 
 function StaffLoginModal({ onClose }) {
@@ -73,7 +124,7 @@ function StaffLoginModal({ onClose }) {
         setError(result.remainingSeconds ? `Account locked for ${result.remainingSeconds} seconds.` : (result.message || 'Invalid PIN or username.'))
         return
       }
-      setRoute('dashboard')
+      setRoute(result.licenseRequired ? 'license' : 'dashboard')
     } finally {
       setLoggingIn(false)
     }
@@ -102,7 +153,7 @@ function LoginScreen() {
       if (!result.ok) {
         setError(result.remainingSeconds ? `Account locked for ${result.remainingSeconds} seconds.` : (result.message || 'Invalid PIN or username.'))
       } else {
-        setRoute('dashboard')
+        setRoute(result.licenseRequired ? 'license' : 'dashboard')
       }
     } finally {
       setLoggingIn(false)
@@ -127,8 +178,27 @@ function LoginScreen() {
         {error && <small className="form-error">{error}</small>}
         <button className="button button-primary" type="submit" disabled={remaining > 0 || loggingIn}>{loggingIn ? <><span className="spinner" /> Signing in...</> : 'Sign in'}</button>
         <a className="public-link" href="#booking" onClick={(event) => { event.preventDefault(); setRoute('booking') }}>Customer booking portal →</a>
+        <a className="public-link" href="#register" onClick={(event) => { event.preventDefault(); setRoute('register') }}>Create a new shop →</a>
         <small className="login-hint">For access or credential resets, contact your administrator.</small>
       </form>
+    </main>
+  )
+}
+
+function LicenseNotice({ onLogout }) {
+  return (
+    <main className="onboarding-shell">
+      <section className="panel onboarding-card payment-notice">
+        <span className="eyebrow">Subscription renewal required</span>
+        <h1>Your license has expired</h1>
+        <p>Please contact the platform administrator to renew. Include your shop name and registered phone number with your payment for manual verification.</p>
+        <div className="payment-details">
+          <strong>Telebirr</strong><span>0940867287</span>
+          <strong>CBE</strong><span>1000278200427</span>
+          <strong>Account name</strong><span>Mohamed Osman Buh</span>
+        </div>
+        <button className="button button-secondary" type="button" onClick={onLogout}>Sign out</button>
+      </section>
     </main>
   )
 }
@@ -143,6 +213,12 @@ function AppShell() {
     document.documentElement.dataset.theme = theme
     window.localStorage.setItem('game-zone-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    const showLicenseNotice = () => setRoute('license')
+    window.addEventListener('license-required', showLicenseNotice)
+    return () => window.removeEventListener('license-required', showLicenseNotice)
+  }, [setRoute])
 
   useEffect(() => {
     let timer
@@ -160,6 +236,11 @@ function AppShell() {
     }
   }, [lockApp])
 
+  if (route === 'register') return <Register />
+  if (route === 'login') return <Login />
+  if (route === 'super-admin') return <SuperAdmin />
+  if (route === 'demo') return <DemoMode />
+  if (route === 'license') return <LicenseNotice onLogout={() => { logout(); setRoute('login') }} />
   if (route === 'home' || route === '' || route === 'booking' || route === 'public') return <PublicPortal />
   if (route === 'staff' && !authenticated) return <LoginScreen />
   if (!authenticated) return <LoginScreen />

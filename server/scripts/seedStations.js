@@ -24,7 +24,7 @@ async function seedStations() {
 
   for (const station of stations) {
     await Station.findOneAndUpdate(
-      { name: station.name },
+      { name: station.name, shopId: { $exists: false } },
       { $setOnInsert: { ...station, status: 'available', hardware: { controller: 'healthy', console: 'healthy' } } },
       { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
     )

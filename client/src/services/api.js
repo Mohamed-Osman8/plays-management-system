@@ -35,6 +35,10 @@ async function request(path, options = {}) {
     Object.assign(error, body)
     error.status = response.status
 
+    if (response.status === 402 && body.code === 'LICENSE_REQUIRED') {
+      window.dispatchEvent(new Event('license-required'))
+    }
+
     if (response.status === 401) {
       clearStoredTokens()
     }
@@ -100,7 +104,7 @@ export function listProducts() {
 }
 
 export function listStations() {
-  return request('/stations')
+  return request(getStoredToken() ? '/stations' : '/stations/public')
 }
 
 export function createProduct(product) {
@@ -185,6 +189,43 @@ export function getShopSettings() {
 
 export function updateShopSettings(settings) {
   return request('/shop', { method: 'PUT', body: JSON.stringify(settings) })
+}
+
+export function registerShop(data) {
+  return request('/auth/register', { method: 'POST', body: JSON.stringify(data) })
+}
+
+async function superAdminRequest(path, token, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...(options.headers || {})
+    }
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.message || 'Super admin request failed.')
+  return body
+}
+
+export function superAdminLogin(credentials) {
+  return request('/super-admin/login', { method: 'POST', body: JSON.stringify(credentials) })
+}
+
+export function superAdminListShops(token) {
+  return superAdminRequest('/super-admin/shops', token)
+}
+
+export function superAdminExtendShop(token, shopId) {
+  return superAdminRequest(`/super-admin/shops/${shopId}/extend`, token, { method: 'POST' })
+}
+
+export function superAdminSetShopLock(token, shopId, locked) {
+  return superAdminRequest(`/super-admin/shops/${shopId}/lock`, token, {
+    method: 'PATCH',
+    body: JSON.stringify({ locked })
+  })
 }
 
 export function listMemberships() {

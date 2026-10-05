@@ -18,7 +18,8 @@ function publicUser(user) {
 
 export async function listUsers(_req, res, next) {
   try {
-    const users = await User.find().sort({ createdAt: -1 })
+    const filter = _req.user?.shopId ? { shopId: _req.user.shopId } : { shopId: { $exists: false } }
+    const users = await User.find(filter).sort({ createdAt: -1 })
     return res.json({ users: users.map(publicUser) })
   } catch (error) {
     return next(error)
@@ -51,6 +52,7 @@ export async function createUser(req, res, next) {
       username: normalizedUsername,
       phone: normalizedPhone,
       role,
+      shopId: req.user?.shopId,
       passwordHash: hash,
       pinHash: hash
     })
@@ -81,7 +83,8 @@ export async function updateUser(req, res, next) {
       updates.pinHash = hash
     }
 
-    const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true })
+    const filter = req.user?.shopId ? { _id: req.params.id, shopId: req.user.shopId } : { _id: req.params.id, shopId: { $exists: false } }
+    const user = await User.findOneAndUpdate(filter, updates, { new: true, runValidators: true })
     if (!user) return res.status(404).json({ message: 'User not found.' })
     return res.json({ user: publicUser(user) })
   } catch (error) {
@@ -93,7 +96,8 @@ export async function updateUser(req, res, next) {
 export async function deleteUser(req, res, next) {
   try {
     if (String(req.user._id) === req.params.id) return res.status(400).json({ message: 'You cannot delete your own account.' })
-    const user = await User.findById(req.params.id)
+    const filter = req.user?.shopId ? { _id: req.params.id, shopId: req.user.shopId } : { _id: req.params.id, shopId: { $exists: false } }
+    const user = await User.findOne(filter)
     if (!user) return res.status(404).json({ message: 'User not found.' })
     if (user.role !== 'Cashier') return res.status(403).json({ message: 'Only cashier accounts can be deleted.' })
     await user.deleteOne()

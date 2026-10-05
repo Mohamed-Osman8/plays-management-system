@@ -1,16 +1,22 @@
-# React + Vite
+# PlayStation Game Zone
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React/Vite client for the PlayStation store management SaaS.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Start the Express API from `server` after configuring `server/.env`.
+2. From `client`, run `npm run dev`.
+3. Open the Vite URL shown in the terminal. The API defaults to `http://localhost:5001/api`; set `VITE_API_URL` in `client/.env` when using another API URL.
 
-## React Compiler
+## Shop onboarding and demo
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Try Demo Mode Instantly** opens an interactive dashboard with sample-only data. Demo actions are held in browser memory and never write to MongoDB.
+- **Start 2-Month Free Trial** creates a shop and owner account. Registration accepts a shop name, phone number and password; the phone number can also be used to sign in.
+- The API assigns a 60-day trial. The platform owner reviews manual Telebirr/CBE payments in `#super-admin` and can approve them by extending a shop's license by 30 days.
+- Operational documents include a `shopId`. The API scopes tenant queries, aggregation pipelines and bulk inserts to the authenticated shop. Station names and product SKUs can be reused by different shops.
 
-## Expanding the Oxlint configuration
+Set `SUPER_ADMIN_USERNAME` and `SUPER_ADMIN_PASSWORD` in the server environment before using the platform administration screen. Keep those credentials private and use HTTPS in production.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## PWA
+
+The app includes a web manifest and a service worker. Home-screen installation requires HTTPS in deployment (localhost is allowed for development). On Android, use Chrome's **Install app / Add to Home screen** menu; on iOS, use Safari's **Share → Add to Home Screen**.

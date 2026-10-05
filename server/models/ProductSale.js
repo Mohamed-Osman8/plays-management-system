@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { tenantPlugin } from '../config/tenantContext.js'
 
 const productSaleSchema = new mongoose.Schema(
   {
@@ -18,4 +19,5 @@ const productSaleSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+productSaleSchema.plugin(tenantPlugin)
 export default mongoose.model('ProductSale', productSaleSchema)

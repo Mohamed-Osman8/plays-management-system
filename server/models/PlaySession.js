@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { tenantPlugin } from '../config/tenantContext.js'
 
 const paymentMethods = ['cash', 'card', 'mobile_money', 'bank', 'membership', 'other']
 
@@ -28,6 +29,7 @@ const playSessionSchema = new mongoose.Schema(
 )
 
 playSessionSchema.index({ station: 1, status: 1 })
+playSessionSchema.plugin(tenantPlugin)
 
 export const SESSION_PAYMENT_METHODS = paymentMethods
 export default mongoose.model('PlaySession', playSessionSchema)

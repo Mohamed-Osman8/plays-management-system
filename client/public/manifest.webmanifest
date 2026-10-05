@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "Game Zone",
+  "short_name": "Game Zone",
+  "description": "PlayStation gaming and management platform.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#10171c",
+  "theme_color": "#10171c",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

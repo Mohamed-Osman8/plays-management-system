@@ -5,6 +5,7 @@ import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import mongoose from 'mongoose'
 import { connectDatabase } from './config/db.js'
+import { ensureTenantIndexes } from './config/tenantIndexes.js'
 import authRoutes from './routes/authRoutes.js'
 import userRoutes from './routes/userRoutes.js'
 import bookingRoutes from './routes/bookingRoutes.js'
@@ -16,6 +17,7 @@ import membershipRoutes from './routes/membershipRoutes.js'
 import salesRoutes from './routes/salesRoutes.js'
 import dashboardRoutes from './routes/dashboardRoutes.js'
 import shopRoutes from './routes/shopRoutes.js'
+import superAdminRoutes from './routes/superAdminRoutes.js'
 
 const app = express()
 const DEFAULT_PORT = Number.parseInt(process.env.PORT || '5001', 10) || 5001
@@ -70,6 +72,7 @@ app.get('/api/health', (_req, res) => {
 })
 
 app.use('/api/auth', authLimiter, authRoutes)
+app.use('/api/super-admin', authLimiter, superAdminRoutes)
 app.use('/api', apiLimiter)
 app.use('/api/shop', shopRoutes)
 app.use('/api/users', userRoutes)
@@ -170,6 +173,7 @@ async function tryListen(startPort, attempts = 12) {
 
 async function startServer() {
   await connectDatabase()
+  await ensureTenantIndexes()
 
   // Attempt to bind to requested port; fall back to next ports if in use.
   const boundPort = await tryListen(port)

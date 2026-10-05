@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { tenantPlugin } from '../config/tenantContext.js'
 
 const membershipPaymentSchema = new mongoose.Schema(
   {
@@ -11,4 +12,5 @@ const membershipPaymentSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+membershipPaymentSchema.plugin(tenantPlugin)
 export default mongoose.model('MembershipPayment', membershipPaymentSchema)

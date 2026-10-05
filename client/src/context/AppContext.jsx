@@ -188,14 +188,21 @@ export function AppProvider({ children }) {
         window.localStorage.setItem('playstation-game-zone-token', token)
         window.localStorage.setItem('token', token)
         window.localStorage.setItem('authToken', token)
-        const [bookings, shopResult] = await Promise.all([getBookings(), getShopSettings()])
-        dispatch({ type: 'SYNC_REMOTE_RESERVATIONS', reservations: bookings.bookings || [] })
-        dispatch({ type: 'SHOP', shop: shopResult.shop })
         const role = String(result.user.role || '').trim().toLowerCase()
         if (!['admin', 'cashier'].includes(role)) {
           throw new Error('Your account does not have an authorized staff role.')
         }
-        dispatch({ type: 'LOGIN', user: result.user.name, role: role === 'admin' ? 'Owner/Admin' : 'Cashier/Staff' })
+        const appRole = role === 'admin' ? 'Owner/Admin' : 'Cashier/Staff'
+        try {
+          const [bookings, shopResult] = await Promise.all([getBookings(), getShopSettings()])
+          dispatch({ type: 'SYNC_REMOTE_RESERVATIONS', reservations: bookings.bookings || [] })
+          dispatch({ type: 'SHOP', shop: shopResult.shop })
+        } catch (error) {
+          if (error.status !== 402) throw error
+          dispatch({ type: 'LOGIN', user: result.user.name, role: appRole })
+          return { ok: true, licenseRequired: true }
+        }
+        dispatch({ type: 'LOGIN', user: result.user.name, role: appRole })
         return { ok: true }
       } catch (error) {
         window.localStorage.removeItem('playstation-game-zone-token')

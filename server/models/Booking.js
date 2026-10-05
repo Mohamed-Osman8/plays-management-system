@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { tenantPlugin } from '../config/tenantContext.js'
 
 const phonePattern = /^\+?[0-9 ]{7,18}$/
 
@@ -15,4 +16,5 @@ const bookingSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+bookingSchema.plugin(tenantPlugin)
 export default mongoose.model('Booking', bookingSchema)

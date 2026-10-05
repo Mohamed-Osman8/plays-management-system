@@ -8,6 +8,14 @@ export async function listStations(_req, res, next) {
   } catch (error) {
     return next(error)
   }
+
+  export async function listPublicStations(_req, res, next) {
+    try {
+      return res.json({ stations: await Station.find({ shopId: { $exists: false } }).sort({ name: 1 }) })
+    } catch (error) {
+      return next(error)
+    }
+  }
 }
 
 export async function updateStationHealth(req, res, next) {
