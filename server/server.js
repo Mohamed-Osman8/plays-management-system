@@ -22,6 +22,9 @@ import superAdminRoutes from './routes/superAdminRoutes.js'
 const app = express()
 const DEFAULT_PORT = Number.parseInt(process.env.PORT || '5001', 10) || 5001
 let port = DEFAULT_PORT
+app.set('trust proxy', 1)
+
+
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET is not configured')
