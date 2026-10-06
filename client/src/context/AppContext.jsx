@@ -118,9 +118,12 @@ export function AppProvider({ children }) {
         name: station.name,
         type: station.type === 'PS5' ? 'PlayStation 5' : 'PlayStation 4',
         status: normalizedStatus,
+        hourlyRate: Number(station.hourlyRate || 0),
         reason: station.maintenanceReason,
+        hardware: station.hardware,
         session: activeSession ? {
           customer: activeSession.customerName,
+          customerPhone: activeSession.customerPhone,
           type: activeSession.sessionType,
           sessionId: String(activeSession._id),
           startedAt: activeSession.startedAt,
@@ -128,7 +131,9 @@ export function AppProvider({ children }) {
           pausedAt: activeSession.pausedAt,
           pausedDurationMs: activeSession.pausedDurationMs,
           ratePerMinute: Number(activeSession.hourlyRate || 0) / 60,
-          elapsedSeconds: Number(activeSession.playedHours || 0) * 3600
+          elapsedSeconds: Number(activeSession.playedHours || 0) * 3600,
+          paymentMethod: activeSession.paymentMethod,
+          reason: activeSession.reason
         } : undefined
       }
     })

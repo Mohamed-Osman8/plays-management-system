@@ -10,7 +10,91 @@ const navItems = [['dashboard', '▦', 'Dashboard'], ['sessions', '◷', 'Sessio
 function StatCard({ label, value, note, tone = 'lime' }) { return <div className={`stat-card stat-${tone}`}><span>{label}</span><strong>{value}</strong><small>{note}</small></div> }
 
 function Modal({ title, eyebrow, onClose, children }) {
-  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><div className="modal panel" role="dialog" aria-modal="true"><div className="modal-heading"><div><span className="eyebrow">{eyebrow}</span><h3>{title}</h3></div><button className="modal-close" type="button" onClick={onClose}>×</button></div>{children}</div></div>
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><div className="modal panel" role="dialog" aria-modal="true"><div className="modal-heading"><div><span className="eyebrow">{eyebrow}</span><h3>{title}</h3></div><button className="modal-back" type="button" onClick={onClose} aria-label="Go back without changing session" title="Go back">←</button></div>{children}</div></div>
+}
+
+function StationDetailsModal({ station, onClose, onAction, onStatusChange }) {
+  const { startSession } = useApp()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [now, setNow] = useState(() => Date.now())
+  const value = (item) => item || '—'
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(interval)
+  }, [])
+  const paused = station.session?.paused
+  const status = paused ? 'Paused' : station.status
+  const session = station.session
+  const elapsedSeconds = session?.startedAt
+    ? Math.max(0, Math.floor((now - new Date(session.startedAt).getTime() - Number(session.pausedDurationMs || 0) - (session.pausedAt ? now - new Date(session.pausedAt).getTime() : 0)) / 1000))
+    : Number(session?.elapsedSeconds || 0)
+  const elapsed = `${String(Math.floor(elapsedSeconds / 3600)).padStart(2, '0')}:${String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, '0')}:${String(elapsedSeconds % 60).padStart(2, '0')}`
+  const amount = session?.startedAt
+    ? formatBirr(elapsedSeconds / 60 * Number(session.ratePerMinute || 0))
+    : value(session?.amount)
+  const start = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      await startSession(station.id, station.status === 'reserved' ? 'Fixed' : 'Open')
+      onClose()
+    } catch (startError) {
+      setError(startError.message || 'Unable to start this station session.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  const updateStatus = async (nextStatus) => {
+    setBusy(true)
+    setError('')
+    try {
+      await onStatusChange(station, nextStatus)
+      onClose()
+    } catch (statusError) {
+      setError(statusError.message || 'Unable to update station status.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Modal title={station.name} eyebrow="Station details · go back without cancelling" onClose={onClose}>
+      <div className="station-detail-console">
+        <div className={`station-screen station-detail-screen station-${paused ? 'paused' : station.status}`}>
+          <span className="station-type">{station.type}</span>
+          <strong>{station.session?.customer || station.reservation?.customer || station.name}</strong>
+          <small>{session ? `${elapsed} · ${amount}` : status}</small>
+        </div>
+      </div>
+      <dl className="station-detail-list">
+        <div><dt>Station</dt><dd>{station.name}</dd></div>
+        <div><dt>Console</dt><dd>{station.type}</dd></div>
+        <div><dt>Status</dt><dd className={`status-pill ${paused ? 'paused' : station.status}`}>{status}</dd></div>
+        <div><dt>Hourly rate</dt><dd>{formatBirr(Number(station.hourlyRate || 0))}</dd></div>
+        <div><dt>Player / reservation</dt><dd>{value(station.session?.customer || station.reservation?.customer)}</dd></div>
+        <div><dt>Player phone</dt><dd>{value(session?.customerPhone)}</dd></div>
+        <div><dt>Session type</dt><dd>{value(station.session?.type)}</dd></div>
+        <div><dt>Started</dt><dd>{station.session?.startedAt ? new Date(station.session.startedAt).toLocaleString() : '—'}</dd></div>
+        <div><dt>Playing time</dt><dd>{session ? elapsed : '—'}</dd></div>
+        <div><dt>Current charge</dt><dd>{session ? amount : '—'}</dd></div>
+        <div><dt>Payment method</dt><dd>{value(session?.paymentMethod)}</dd></div>
+        <div><dt>Session note</dt><dd>{value(session?.reason)}</dd></div>
+        <div><dt>Maintenance note</dt><dd>{station.status === 'maintenance' ? value(station.reason) : '—'}</dd></div>
+        <div><dt>Console health</dt><dd>{value(station.hardware?.console)}</dd></div>
+        <div><dt>Controller health</dt><dd>{value(station.hardware?.controller)}</dd></div>
+      </dl>
+      {error && <small className="form-error" role="alert">{error}</small>}
+      <div className="modal-actions station-detail-actions">
+        {['available', 'reserved'].includes(station.status) && <button className="button button-primary" type="button" disabled={busy} onClick={start}>{busy ? 'Starting…' : 'Start session'}</button>}
+        {station.status === 'playing' && <button className="button button-secondary" type="button" disabled={busy} onClick={() => onAction('pause', station)}>{paused ? 'Resume' : 'Pause'}</button>}
+        {station.status === 'playing' && <button className="button button-danger" type="button" disabled={busy} onClick={() => onAction('end', station)}>End & bill</button>}
+        {station.status === 'playing' && <button className="button button-secondary" type="button" disabled={busy} onClick={() => onAction('cancel', station)}>Cancel session</button>}
+        {onStatusChange && station.status === 'available' && <button className="button button-secondary" type="button" disabled={busy} onClick={() => updateStatus('reserved')}>Reserve</button>}
+        {onStatusChange && station.status !== 'playing' && station.status !== 'maintenance' && <button className="button button-secondary" type="button" disabled={busy} onClick={() => updateStatus('maintenance')}>Maintenance</button>}
+        {onStatusChange && station.status !== 'playing' && station.status !== 'available' && <button className="button button-secondary" type="button" disabled={busy} onClick={() => updateStatus('available')}>Set available</button>}
+      </div>
+    </Modal>
+  )
 }
 
 function SessionModal({ station, kind, onClose }) {
@@ -24,8 +108,8 @@ function SessionModal({ station, kind, onClose }) {
   const available = stations.filter((item) => item.status === 'available')
   const submit = async (event) => {
     event.preventDefault()
-    if ((kind === 'cancel' || (kind === 'pause' && !station.session?.paused) || kind === 'reverse') && !reason.trim()) {
-      setError('A reason is required for this action.')
+    if (kind === 'cancel' && !reason.trim()) {
+      setError('A reason is required to cancel a session.')
       return
     }
     setSubmitting(true)
@@ -36,7 +120,7 @@ function SessionModal({ station, kind, onClose }) {
       if (kind === 'pause') await pauseSession(station.id, !station.session.paused, reason)
       if (kind === 'cancel') await cancelSession(station.id, reason)
       if (kind === 'reopen') reopenSession(station.id, station.session, minutes)
-      if (kind === 'end') await endSession(station.id, reason || 'Final bill', paymentMethod)
+      if (kind === 'end') await endSession(station.id, '', paymentMethod)
       if (kind === 'reverse') await reverseSession(station.id, reason)
       onClose()
     } catch (actionError) {
@@ -45,13 +129,13 @@ function SessionModal({ station, kind, onClose }) {
       setSubmitting(false)
     }
   }
-  const labels = { transfer: ['Transfer session', 'Choose an available station. Products and session details move with the player.'], extend: ['Extend fixed session', 'Add time before the countdown expires.'], pause: [station.session?.paused ? 'Resume session' : 'Pause session', 'A reason is required for the audit trail.'], cancel: ['Cancel session', 'Cancellation requires a reason and is added to the audit log.'], reopen: ['Reopen expired session', 'Reopen within the display grace window.'], end: ['End session', 'Review the session and close it for billing.'], reverse: ['Reverse payment', 'Reverse a completed session and record the reason.'] }
-  return <Modal title={labels[kind][0]} eyebrow={labels[kind][1]} onClose={onClose}><form className="modal-form" onSubmit={submit}>{kind === 'transfer' && <label>Available station<select value={target} onChange={(event) => setTarget(event.target.value)} required>{available.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.type}</option>)}</select></label>}{['extend', 'reopen'].includes(kind) && <label>{kind === 'extend' ? 'Additional minutes' : 'Reopen for minutes'}<input type="number" min="1" max="240" value={minutes} onChange={(event) => setMinutes(event.target.value)} required /></label>}{['pause', 'cancel', 'end', 'reverse'].includes(kind) && <label>Reason{kind === 'end' ? ' (optional)' : ''}<textarea value={reason} onChange={(event) => setReason(event.target.value)} required={kind === 'cancel' || kind === 'reverse' || (kind === 'pause' && !station.session?.paused)} placeholder="Enter a clear reason..." /></label>}{kind === 'end' && <label>Payment method<select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="cash">Cash</option><option value="mobile_money">Mobile money</option><option value="card">Card</option><option value="bank">Bank</option><option value="membership">Membership</option><option value="other">Other</option></select></label>}{error && <small className="form-error" role="alert">{error}</small>}<div className="modal-actions"><button className="button button-secondary" type="button" onClick={onClose} disabled={submitting}>Back</button><button className="button button-primary" type="submit" disabled={submitting}>{submitting ? 'Saving…' : kind === 'cancel' ? 'Cancel session' : kind === 'transfer' ? 'Transfer now' : kind === 'pause' && station.session?.paused ? 'Resume session' : kind === 'pause' ? 'Pause session' : kind === 'end' ? 'End & bill' : kind === 'reverse' ? 'Reverse payment' : 'Confirm'}</button></div></form></Modal>
+  const labels = { transfer: ['Transfer session', 'Choose an available station. Products and session details move with the player.'], extend: ['Extend fixed session', 'Add time before the countdown expires.'], pause: [station.session?.paused ? 'Resume session' : 'Pause session', 'Change the session state.'], cancel: ['Cancel session', 'Cancellation requires a reason and is added to the audit log.'], reopen: ['Reopen expired session', 'Reopen within the display grace window.'], end: ['End session', 'Review the session and close it for billing.'], reverse: ['Reverse payment', 'Reverse a completed session.'] }
+  return <Modal title={labels[kind][0]} eyebrow={labels[kind][1]} onClose={onClose}><form className="modal-form" onSubmit={submit}>{kind === 'transfer' && <label>Available station<select value={target} onChange={(event) => setTarget(event.target.value)} required>{available.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.type}</option>)}</select></label>}{['extend', 'reopen'].includes(kind) && <label>{kind === 'extend' ? 'Additional minutes' : 'Reopen for minutes'}<input type="number" min="1" max="240" value={minutes} onChange={(event) => setMinutes(event.target.value)} required /></label>}{kind === 'cancel' && <label>Cancellation reason<textarea value={reason} onChange={(event) => setReason(event.target.value)} required placeholder="Enter why this session is being cancelled..." /></label>}{kind === 'end' && <label>Payment method<select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="cash">Cash</option><option value="mobile_money">Mobile money</option><option value="card">Card</option><option value="bank">Bank</option><option value="membership">Membership</option><option value="other">Other</option></select></label>}{error && <small className="form-error" role="alert">{error}</small>}<div className="modal-actions"><button className="button button-secondary" type="button" onClick={onClose} disabled={submitting}>← Back</button><button className="button button-primary" type="submit" disabled={submitting}>{submitting ? 'Saving…' : kind === 'cancel' ? 'Cancel session' : kind === 'transfer' ? 'Transfer now' : kind === 'pause' && station.session?.paused ? 'Resume session' : kind === 'pause' ? 'Pause session' : kind === 'end' ? 'End & bill' : kind === 'reverse' ? 'Reverse payment' : 'Confirm'}</button></div></form></Modal>
 }
 
-function StationCard({ station, onAction, management = false, onStatusChange, onDelete }) {
+function StationCard({ station, onAction, onView, management = false, onStatusChange, onDelete }) {
   const { startSession, setRoute } = useApp()
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(() => Date.now())
   const [actionError, setActionError] = useState('')
   const [busy, setBusy] = useState(false)
   const isPaused = station.session?.paused
@@ -69,7 +153,6 @@ function StationCard({ station, onAction, management = false, onStatusChange, on
     }
   }
   useEffect(() => {
-    setNow(Date.now())
     if (station.status !== 'playing' || station.session?.paused || !station.session?.startedAt) return undefined
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(timer)
@@ -104,13 +187,20 @@ function StationCard({ station, onAction, management = false, onStatusChange, on
   }
   const statusClass = isPaused ? 'paused' : station.status
   const statusText = station.status === 'playing' ? (isPaused ? 'Paused' : 'Playing') : station.status
-  return <article className={`station-card station-${station.status} ${isPaused ? 'station-paused' : ''}`}>
+  const openDetails = () => onView?.(station)
+  const handleCardKeyDown = (event) => {
+    if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return
+    event.preventDefault()
+    openDetails()
+  }
+  return <article className={`station-card station-${station.status} ${isPaused ? 'station-paused' : ''} station-card-interactive`} role="group" tabIndex={0} aria-label={`View full details for ${station.name}`} onClick={(event) => { if (!event.target.closest('button')) openDetails() }} onKeyDown={handleCardKeyDown}>
     <div className="station-card-head"><span className="station-id">{station.name}</span><span className={`status-pill ${statusClass}`}>{statusText}</span></div>
     <div className="station-screen">
       <span className="station-type"><svg viewBox="0 0 40 30" aria-hidden="true"><rect x="2" y="2" width="36" height="22" rx="3" /><path d="M14 28h12M20 24v4" /></svg>{normalizedType}</span>
       <strong>{station.status === 'playing' ? station.session?.customer : station.status === 'reserved' ? station.reservation?.customer || 'Reserved' : station.status === 'maintenance' ? 'Maintenance' : 'Ready to play'}</strong>
       <small>{station.status === 'playing' ? `${liveElapsed || '00:00:00'} · ${liveAmount || formatBirr(0)}` : station.status === 'maintenance' ? station.reason || 'Unavailable for service' : 'No active session'}</small>
     </div>
+    <button className="station-details-trigger" type="button" onClick={openDetails}>View station details <span>→</span></button>
     {actionError && <small className="form-error" role="alert">{actionError}</small>}
     {management ? <div className="station-actions station-management-actions">
       {station.status === 'available' && <><button type="button" className="button button-primary" disabled={busy} onClick={() => start('Open')}>Start</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => changeStatus('reserved')}>Reserve</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => changeStatus('maintenance')}>Maintenance</button></>}
@@ -174,9 +264,9 @@ function DashboardContent() {
     {metrics.error && <div className="data-alert" role="alert">{metrics.error}</div>}
     <section className="stats-grid"><StatCard label={`${selectedLabel} revenue`} value={metrics.loading && !metrics.report ? 'Loading…' : `${formatBirr(revenue)}`} note="Completed sessions, sales, and memberships" /><StatCard label="Active stations" value={`${activeStations}/${stations.length}`} note="Live from station records" tone="cyan" /><StatCard label="Sessions completed" value={metrics.loading && !metrics.report ? 'Loading…' : Number(summary.completedSessions || 0).toLocaleString()} note={`${Number(summary.playedHours || 0).toFixed(2)} playing hours`} tone="purple" /><StatCard label="Low stock items" value={metrics.loading && !metrics.report ? 'Loading…' : lowStock.toLocaleString()} note="Products at 5 units or below" tone="orange" /></section>
     {bookingRequests.some((request) => request.status === 'Pending approval') && <section className="panel incoming-bookings"><div className="panel-heading"><div><span className="eyebrow">Customer portal</span><h3>Incoming remote bookings</h3></div><button className="text-button" type="button" onClick={() => setRoute('remote-booking')}>View all →</button></div>{bookingRequests.filter((request) => request.status === 'Pending approval').map((request) => <div className="incoming-booking-row" key={request.confirmation}><span><strong>{request.customer}</strong><small>{request.phone} · {request.consoleType || request.stationId} · {request.date} at {request.time}</small></span><span><button className="button button-primary" type="button" onClick={() => updateRemoteReservation(request, 'Approved')}>Approve</button><button className="button button-danger" type="button" onClick={() => updateRemoteReservation(request, 'Rejected')}>Reject</button></span></div>)}</section>}
-    <section className="dashboard-grid"><div className="panel stations-panel"><div className="panel-heading"><div><span className="eyebrow">Live floor plan</span><h3>Gaming stations <em>● Live</em></h3></div><button className="text-button" type="button" onClick={() => setRoute('sessions')}>View sessions →</button></div>{stations.length ? <div className="station-grid">{stations.map((station) => <StationCard station={station} key={station.id} onAction={(kind, selected) => setModal({ kind, station: selected })} />)}</div> : <div className="empty-state">No stations were returned by the server.</div>}</div>
+    <section className="dashboard-grid"><div className="panel stations-panel"><div className="panel-heading"><div><span className="eyebrow">Live floor plan</span><h3>Gaming stations <em>● Live</em></h3></div><button className="text-button" type="button" onClick={() => setRoute('sessions')}>View sessions →</button></div>{stations.length ? <div className="station-grid">{stations.map((station) => <StationCard station={station} key={station.id} onView={(selected) => setModal({ kind: 'details', station: selected })} onAction={(kind, selected) => setModal({ kind, station: selected })} />)}</div> : <div className="empty-state">No stations were returned by the server.</div>}</div>
       <aside className="panel revenue-panel"><div className="panel-heading"><div><span className="eyebrow">Performance</span><h3>{selectedLabel} revenue</h3></div></div><div className="revenue-total"><strong>{formatBirr(revenue)}</strong><small>Realized revenue from MongoDB</small></div><div className="chart"><div className="chart-bars">{buckets.map((bucket) => <div className="bar-group" key={bucket.date}><i style={{ height: `${Math.max(3, Number(bucket.revenue || 0) / maxRevenue * 100)}%` }} /><small>{new Date(bucket.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></div>)}</div></div>{!buckets.length && <div className="empty-state">No revenue records in this period.</div>}<div className="revenue-legend"><span><i className="dot lime" />Gaming <b>{formatBirr(gamingRevenue)}</b></span><span><i className="dot cyan" />Inventory <b>{formatBirr(inventoryRevenue)}</b></span><span><i className="dot purple" />Memberships <b>{formatBirr(membershipRevenue)}</b></span></div></aside></section>
-    <section className="lower-grid"><div className="panel activity-panel"><div className="panel-heading"><div><span className="eyebrow">Current session</span><h3>Recent activity</h3></div></div>{auditLog.length ? <Activity entries={auditLog.slice(0, 5)} /> : <div className="empty-state">Activity from this staff session will appear here.</div>}</div><div className="panel quick-panel"><span className="eyebrow">Quick actions</span><h3>What do you need?</h3><button type="button" onClick={() => setRoute('reservations')}>▣ Create reservation <span>→</span></button>{admin && <button type="button" onClick={() => setRoute('inventory')}>◈ Manage inventory <span>→</span></button>}<button type="button" onClick={() => setRoute('pos')}>＋ New sale <span>→</span></button>{admin && <button type="button" onClick={() => setRoute('reports')}>▤ Open reports <span>→</span></button>}</div></section><footer className="page-footer">PLAYSTATION GAME ZONE MANAGEMENT SYSTEM <span>MongoDB live data · {selectedLabel}</span></footer>{modal && <SessionModal station={modal.station} kind={modal.kind} onClose={() => setModal(null)} />}</main>
+    <section className="lower-grid"><div className="panel activity-panel"><div className="panel-heading"><div><span className="eyebrow">Current session</span><h3>Recent activity</h3></div></div>{auditLog.length ? <Activity entries={auditLog.slice(0, 5)} /> : <div className="empty-state">Activity from this staff session will appear here.</div>}</div><div className="panel quick-panel"><span className="eyebrow">Quick actions</span><h3>What do you need?</h3><button type="button" onClick={() => setRoute('reservations')}>▣ Create reservation <span>→</span></button>{admin && <button type="button" onClick={() => setRoute('inventory')}>◈ Manage inventory <span>→</span></button>}<button type="button" onClick={() => setRoute('pos')}>＋ New sale <span>→</span></button>{admin && <button type="button" onClick={() => setRoute('reports')}>▤ Open reports <span>→</span></button>}</div></section><footer className="page-footer">PLAYSTATION GAME ZONE MANAGEMENT SYSTEM <span>MongoDB live data · {selectedLabel}</span></footer>{modal && (modal.kind === 'details' ? <StationDetailsModal station={modal.station} onClose={() => setModal(null)} onAction={(kind, selected) => setModal({ kind, station: selected })} /> : <SessionModal station={modal.station} kind={modal.kind} onClose={() => setModal(null)} />)}</main>
 }
 
 function Activity({ entries }) { return <div className="activity-list">{entries.map((entry) => <div className="activity-row" key={entry.id}><span className={`activity-dot ${entry.tone}`} /><small>{entry.time}</small><span><strong>{entry.user}</strong> {entry.action}</span><b>{entry.value}</b></div>)}</div> }
@@ -266,11 +356,7 @@ function SessionManagement() {
         if (!reason?.trim()) return
         await cancelStationSession(session._id, { reason })
       }
-      if (action === 'reverse') {
-        const reason = window.prompt('Reason for reversing this payment:')
-        if (!reason?.trim()) return
-        await reverseStationSession(session._id, { reason })
-      }
+      if (action === 'reverse') await reverseStationSession(session._id, {})
       await refresh()
     } catch (requestError) {
       setError(requestError.message || 'Session action failed.')
@@ -413,8 +499,8 @@ function StationsManagement() {
   return <><ModulePage title="Station management" eyebrow="Add and operate your floor plan with live session state, timers, and console cards.">
     <form className="panel station-create-form" onSubmit={add}><label>Station name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="e.g. PS5-11" required /></label><label>Console type<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}><option>PlayStation 5</option><option>PlayStation 4</option></select></label><button className="button button-primary" type="submit">Add station</button></form>
     {error && <small className="form-error" role="alert">{error}</small>}
-    {loading ? <div className="panel empty-state">Loading stations…</div> : stations.length ? <div className="station-grid station-management-grid">{stations.map((station) => <StationCard station={station} key={station.id} management onAction={(kind, selected) => setModal({ kind, station: selected })} onStatusChange={changeStatus} onDelete={remove} />)}</div> : <div className="panel empty-state">No stations are configured yet. Add a station above to build your floor plan.</div>}
-  </ModulePage>{modal && <SessionModal station={modal.station} kind={modal.kind} onClose={() => setModal(null)} />}</>
+    {loading ? <div className="panel empty-state">Loading stations…</div> : stations.length ? <div className="station-grid station-management-grid">{stations.map((station) => <StationCard station={station} key={station.id} management onView={(selected) => setModal({ kind: 'details', station: selected })} onAction={(kind, selected) => setModal({ kind, station: selected })} onStatusChange={changeStatus} onDelete={remove} />)}</div> : <div className="panel empty-state">No stations are configured yet. Add a station above to build your floor plan.</div>}
+  </ModulePage>{modal && (modal.kind === 'details' ? <StationDetailsModal station={modal.station} onClose={() => setModal(null)} onAction={(kind, selected) => setModal({ kind, station: selected })} onStatusChange={changeStatus} /> : <SessionModal station={modal.station} kind={modal.kind} onClose={() => setModal(null)} />)}</>
 }
 
 function Memberships() {
@@ -633,6 +719,26 @@ function HardwareHealth({ hardware, reportHardwareIssue }) {
 function Expenses({ expenses, addExpense }) { const [form, setForm] = useState({ title: '', category: 'Utilities', amount: '' }); return <ModulePage title="Expenses" eyebrow="Record daily expenses and notify the admin team immediately."><form className="expense-form panel" onSubmit={(event) => { event.preventDefault(); addExpense({ ...form, amount: Number(form.amount) }); setForm({ ...form, title: '', amount: '' }) }}><label>Expense description<input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="e.g. Electricity bill" required /></label><label>Category<select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option>Utilities</option><option>Rent</option><option>Maintenance</option><option>Supplies</option></select></label><label>Amount<input type="number" min="0" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} required /></label><button className="button button-primary" type="submit">Save expense</button></form><div className="table-panel"><TableHeader columns={['Description', 'Category', 'Date', 'Added by', 'Amount']} />{expenses.map((expense) => <div className="table-row" key={expense.id}><strong>{expense.title}</strong><span>{expense.category}</span><span>Today</span><span>{expense.by}</span><b className="negative">−{formatBirr(expense.amount)}</b></div>)}</div></ModulePage> }
 
 function TableHeader({ columns, className = '' }) { return <div className={`table-header ${className}`}>{columns.map((column) => <span key={column}>{column}</span>)}</div> }
-function Dashboard() { const { route, role, shop } = useApp(); const admin = role === 'Owner/Admin'; const restrictedForCashier = ['stations', 'inventory', 'reports', 'settings']; const visibleNav = navItems.filter(([id]) => admin || !restrictedForCashier.includes(id)); return <><aside className="sidebar"><a className="sidebar-brand" href="#dashboard"><span className="brand-mark">P</span><span>{shop.name || 'GAME ZONE'}<br /><b>MANAGEMENT</b></span></a><nav>{visibleNav.map(([id, icon, label]) => <a className={route === id ? 'active' : ''} href={`#${id}`} key={id}>{icon}<span>{label}</span></a>)}</nav><div className="sidebar-footer"><div className="network-status"><i /> Local network <b>Online</b></div><small>© 2024 {shop.name || 'Game Zone'}<br />v1.0.0</small></div></aside>{route === 'dashboard' ? <DashboardContent /> : <ModuleContent route={route} />}</> }
+function Dashboard() {
+  const { route, role, shop } = useApp()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const admin = role === 'Owner/Admin'
+  const restrictedForCashier = ['stations', 'inventory', 'reports', 'settings']
+  const visibleNav = navItems.filter(([id]) => admin || !restrictedForCashier.includes(id))
+  return <>
+    <aside className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
+      <div className="sidebar-heading">
+        <a className="sidebar-brand" href="#dashboard">
+          <span className="brand-mark">P</span>
+          {menuOpen && <span>{shop.name || 'GAME ZONE'}<br /><b>MANAGEMENT</b></span>}
+        </a>
+        <button className="sidebar-menu-toggle" type="button" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? '×' : '☰'}</button>
+      </div>
+      {menuOpen && <nav aria-label="Main navigation">{visibleNav.map(([id, icon, label]) => <a className={route === id ? 'active' : ''} href={`#${id}`} key={id} onClick={() => setMenuOpen(false)}>{icon}<span>{label}</span></a>)}</nav>}
+      {menuOpen && <div className="sidebar-footer"><div className="network-status"><i /> Local network <b>Online</b></div><small>© 2024 {shop.name || 'Game Zone'}<br />v1.0.0</small></div>}
+    </aside>
+    {route === 'dashboard' ? <DashboardContent /> : <ModuleContent route={route} />}
+  </>
+}
 
 export default Dashboard

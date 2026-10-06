@@ -147,10 +147,12 @@ export async function cancelSession(req, res, next) {
     const session = await findSession(req.params.id)
     if (!session) return res.status(404).json({ message: 'Session not found.' })
     if (!['active', 'paused'].includes(session.status)) return res.status(409).json({ message: 'Only an active or paused session can be cancelled.' })
+    const reason = String(req.body?.reason || '').trim()
+    if (!reason) return res.status(400).json({ message: 'A cancellation reason is required.' })
     session.status = 'cancelled'
     session.endedAt = new Date()
     session.pausedAt = null
-    session.reason = String(req.body.reason || 'Cancelled').trim().slice(0, 500)
+    session.reason = reason.slice(0, 500)
     await session.save()
     await Station.findByIdAndUpdate(session.station, { $set: { status: 'available' } })
     return res.json({ session })

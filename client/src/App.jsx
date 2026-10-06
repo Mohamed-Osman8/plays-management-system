@@ -263,6 +263,7 @@ function AppShell() {
       <Navbar />
       <header className="topbar">
         <div>
+          {route !== 'dashboard' && <button className="app-back-button" type="button" onClick={() => setRoute('dashboard')} aria-label="Back to dashboard" title="Back to dashboard">←</button>}
           <span className="eyebrow">Operations center</span>
           <h1>Good evening, {user.split(' ')[0]}</h1>
         </div>
