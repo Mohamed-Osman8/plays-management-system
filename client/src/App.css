@@ -162,6 +162,9 @@ select:focus, input:focus { border-color: var(--lime); }
 .onboarding-card > label { display: grid; gap: 7px; color: var(--muted); font-size: .7rem; }
 .onboarding-card .button { width: 100%; }
 .onboarding-card .text-button { justify-self: center; }
+.registration-success { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid #c8f45d55; border-radius: 7px; color: var(--lime); background: #c8f45d0d; }
+.registration-success > span { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 auto; border-radius: 50%; color: #10150d; background: var(--lime); font-weight: 700; }
+.registration-success p { font-size: .72rem; line-height: 1.5; }
 .payment-notice { border-color: #ffad6655; }
 .payment-details { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); font-size: .75rem; }
 .payment-details span { color: var(--muted); }
@@ -213,6 +216,18 @@ select:focus, input:focus { border-color: var(--lime); }
 .demo-bottom-cta strong { font: 600 .9rem 'Space Grotesk'; }
 .demo-bottom-cta small, .demo-disclaimer { color: var(--muted); font-size: .68rem; }
 .demo-disclaimer { margin-top: 12px; text-align: center; }
+
+.pwa-install-control { position: relative; }
+.pwa-install-button { min-height: 34px; }
+.pwa-install-notice { position: absolute; top: calc(100% + 10px); right: 0; z-index: 100; display: grid; gap: 9px; width: min(300px, calc(100vw - 32px)); padding: 17px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 36px #0009; }
+.pwa-install-notice strong { padding-right: 20px; font: 600 .8rem 'Space Grotesk'; }
+.pwa-install-notice p { color: var(--muted); font-size: .7rem; line-height: 1.45; }
+.pwa-install-notice .button { justify-self: start; }
+.pwa-install-notice-close { position: absolute; top: 8px; right: 9px; border: 0; color: var(--muted); background: transparent; font-size: 1.2rem; }
+.pwa-install-help { position: absolute; top: calc(100% + 10px); right: 0; z-index: 100; width: min(320px, calc(100vw - 32px)); padding: 17px 38px 17px 17px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); box-shadow: 0 12px 36px #0009; }
+.pwa-install-help strong { font: 600 .8rem 'Space Grotesk'; }
+.pwa-install-help p { margin-top: 7px; color: var(--muted); font-size: .7rem; line-height: 1.5; }
+.pwa-install-help-close { position: absolute; top: 8px; right: 9px; border: 0; color: var(--muted); background: transparent; font-size: 1.2rem; }
 
 @media (max-width: 900px) {
   .public-header-actions { flex-wrap: wrap; justify-content: end; }

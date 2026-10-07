@@ -3,6 +3,7 @@ import { AppProvider } from './context/AppContext'
 import { useApp } from './context/useApp'
 import Dashboard from './pages/Home'
 import Navbar from './components/Navbar'
+import PwaInstallButton from './components/PwaInstallButton'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import SuperAdmin from './pages/SuperAdmin'
@@ -116,7 +117,8 @@ function StaffLoginModal({ onClose }) {
 
   const submit = async (event) => {
     event.preventDefault()
-    if (remaining > 0) return
+    if (remaining > 0 || loggingIn) return
+    setError('')
     setLoggingIn(true)
     try {
       const result = await login(form.username.trim(), form.password)
@@ -130,7 +132,7 @@ function StaffLoginModal({ onClose }) {
     }
   }
 
-  return <div className="staff-login-overlay" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><form className="lock-card staff-login-modal" onSubmit={submit}><button className="modal-close staff-login-close" type="button" onClick={onClose} aria-label="Close staff login">×</button><div className="brand-mark">P</div><span className="eyebrow">Secure staff access</span><h1>Staff<br /><span>Portal</span></h1><p>Sign in to the local operations center.</p><label className="login-label">Username<input autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} placeholder="Enter your username" required /></label><label className="login-label">Password or 6-digit PIN<input type="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="Enter your password or PIN" required /></label>{remaining > 0 && <small className="form-error">Locked out for {remaining} seconds.</small>}{error && <small className="form-error">{error}</small>}<button className="button button-primary" type="submit" disabled={remaining > 0 || loggingIn}>{loggingIn ? <><span className="spinner" /> Signing in...</> : 'Sign in'}</button><small className="login-hint">If you cannot sign in, contact your administrator.</small></form></div>
+  return <div className="staff-login-overlay" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><form className="lock-card staff-login-modal" onSubmit={submit}><button className="modal-close staff-login-close" type="button" onClick={onClose} aria-label="Close staff login">×</button><div className="brand-mark">P</div><span className="eyebrow">Secure staff access</span><h1>Staff<br /><span>Portal</span></h1><p>Sign in to your game zone operations center.</p><label className="login-label">Admin phone or username<input autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} placeholder="Enter your phone or username" required /></label><label className="login-label">Password or 6-digit PIN<input type="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="Enter your password or PIN" required /></label>{remaining > 0 && <small className="form-error">Locked out for {remaining} seconds.</small>}{error && <small className="form-error" role="alert">{error}</small>}<button className="button button-primary" type="submit" disabled={remaining > 0 || loggingIn}>{loggingIn ? <><span className="spinner" /> Signing in...</> : 'Sign in'}</button><small className="login-hint">If you cannot sign in, contact your administrator.</small></form></div>
 }
 
 function LoginScreen() {
@@ -167,8 +169,8 @@ function LoginScreen() {
         <h1>PlayStation<br /><span>Game Zone</span></h1>
         <p>Sign in to the local operations center.</p>
         <label className="login-label">
-          Username
-          <input autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} placeholder="Enter your username" required />
+          Admin phone or username
+          <input autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} placeholder="Enter your phone or username" required />
         </label>
         <label className="login-label">
           Password or 6-digit PIN
@@ -268,6 +270,7 @@ function AppShell() {
           <h1>Good evening, {user.split(' ')[0]}</h1>
         </div>
         <div className="topbar-actions">
+          <PwaInstallButton />
           <span className="live-indicator"><i /> Live sync</span>
           <button className="button button-secondary theme-toggle" type="button" aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} onClick={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☀ Light' : '☾ Dark'}</button>
           <div className="notification-menu">

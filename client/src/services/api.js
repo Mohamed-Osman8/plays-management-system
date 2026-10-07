@@ -1,5 +1,18 @@
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace(/\/$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? 'http://localhost:5001/api' : '')).replace(/\/$/, '')
 const TOKEN_KEYS = ['playstation-game-zone-token', 'token', 'authToken']
+
+function getApiUrl(path) {
+  if (!API_BASE_URL) {
+    throw new Error('VITE_API_URL is required in the production frontend environment.')
+  }
+
+  const apiUrl = new URL(`${API_BASE_URL}${path}`, window.location.origin)
+  if (window.location.protocol === 'https:' && apiUrl.protocol !== 'https:') {
+    throw new Error('VITE_API_URL must use HTTPS when the frontend is served over HTTPS.')
+  }
+
+  return apiUrl
+}
 
 function getStoredToken() {
   for (const key of TOKEN_KEYS) {
@@ -15,18 +28,21 @@ function clearStoredTokens() {
 
 async function request(path, options = {}) {
   const token = getStoredToken()
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {})
+  const headers = new Headers(options.headers)
+  headers.set('Accept', 'application/json')
+
+  if (options.body != null && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
   }
 
   if (token) {
-    headers.Authorization = `Bearer ${token}`
+    headers.set('Authorization', `Bearer ${token}`)
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(getApiUrl(path), {
     ...options,
-    headers
+    headers,
+    cache: 'no-store',
   })
 
   const body = await response.json().catch(() => ({}))
@@ -196,13 +212,17 @@ export function registerShop(data) {
 }
 
 async function superAdminRequest(path, token, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const headers = new Headers(options.headers)
+  headers.set('Accept', 'application/json')
+  if (options.body != null && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+  headers.set('Authorization', `Bearer ${token}`)
+
+  const response = await fetch(getApiUrl(path), {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(options.headers || {})
-    }
+    headers,
+    cache: 'no-store',
   })
   const body = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(body.message || 'Super admin request failed.')

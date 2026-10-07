@@ -198,16 +198,33 @@ export function AppProvider({ children }) {
           throw new Error('Your account does not have an authorized staff role.')
         }
         const appRole = role === 'admin' ? 'Owner/Admin' : 'Cashier/Staff'
-        try {
-          const [bookings, shopResult] = await Promise.all([getBookings(), getShopSettings()])
-          dispatch({ type: 'SYNC_REMOTE_RESERVATIONS', reservations: bookings.bookings || [] })
-          dispatch({ type: 'SHOP', shop: shopResult.shop })
-        } catch (error) {
-          if (error.status !== 402) throw error
-          dispatch({ type: 'LOGIN', user: result.user.name, role: appRole })
+        dispatch({ type: 'LOGIN', user: result.user.name, role: appRole })
+
+        const [bookingsResult, shopResult] = await Promise.allSettled([getBookings(), getShopSettings()])
+        const hydrationResults = [bookingsResult, shopResult]
+        const hydrationErrors = hydrationResults
+          .filter((item) => item.status === 'rejected')
+          .map((item) => item.reason)
+
+        if (hydrationErrors.some((error) => error.status === 402)) {
           return { ok: true, licenseRequired: true }
         }
-        dispatch({ type: 'LOGIN', user: result.user.name, role: appRole })
+
+        if (hydrationErrors.some((error) => error.status === 401)) {
+          window.localStorage.removeItem('playstation-game-zone-token')
+          window.localStorage.removeItem('token')
+          window.localStorage.removeItem('authToken')
+          dispatch({ type: 'LOGOUT' })
+          return { ok: false, message: 'Your sign-in session could not be verified. Please sign in again.' }
+        }
+
+        if (bookingsResult.status === 'fulfilled') {
+          dispatch({ type: 'SYNC_REMOTE_RESERVATIONS', reservations: bookingsResult.value.bookings || [] })
+        }
+        if (shopResult.status === 'fulfilled') {
+          dispatch({ type: 'SHOP', shop: shopResult.value.shop })
+        }
+        hydrationErrors.forEach((error) => console.error('Initial staff data load failed.', error))
         return { ok: true }
       } catch (error) {
         window.localStorage.removeItem('playstation-game-zone-token')
