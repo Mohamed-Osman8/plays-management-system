@@ -50,7 +50,7 @@ function StationDetailsModal({ station, onClose, onAction, onStatusChange }) {
     return () => window.clearInterval(interval)
   }, [])
   const paused = station.session?.paused
-  const status = paused ? 'Paused' : station.status
+  const status = paused ? 'Paused' : station.status === 'playing' ? 'In use' : station.status === 'available' ? 'Free' : station.status === 'maintenance' ? 'Maintenance' : 'Reserved'
   const session = station.session
   const elapsedSeconds = session?.startedAt
     ? Math.max(0, Math.floor((now - new Date(session.startedAt).getTime() - Number(session.pausedDurationMs || 0) - (session.pausedAt ? now - new Date(session.pausedAt).getTime() : 0)) / 1000))
@@ -114,6 +114,7 @@ function StationDetailsModal({ station, onClose, onAction, onStatusChange }) {
       <div className="modal-actions station-detail-actions">
         {['available', 'reserved'].includes(station.status) && <button className="button button-primary" type="button" disabled={busy} onClick={start}>{busy ? 'Starting…' : 'Start session'}</button>}
         {station.status === 'playing' && <button className="button button-secondary" type="button" disabled={busy} onClick={() => onAction('pause', station)}>{paused ? 'Resume' : 'Pause'}</button>}
+        {station.status === 'playing' && <button className="button button-secondary" type="button" disabled={busy} onClick={() => onAction('transfer', station)}>Change station</button>}
         {station.status === 'playing' && <button className="button button-danger" type="button" disabled={busy} onClick={() => onAction('end', station)}>End & bill</button>}
         {station.status === 'playing' && <button className="button button-secondary" type="button" disabled={busy} onClick={() => onAction('cancel', station)}>Cancel session</button>}
         {onStatusChange && station.status === 'available' && <button className="button button-secondary" type="button" disabled={busy} onClick={() => updateStatus('reserved')}>Reserve</button>}
@@ -135,6 +136,10 @@ function SessionModal({ station, kind, onClose }) {
   const available = stations.filter((item) => item.status === 'available')
   const submit = async (event) => {
     event.preventDefault()
+    if (kind === 'transfer' && !target) {
+      setError('There are no free stations to transfer this session to.')
+      return
+    }
     if (kind === 'cancel' && !reason.trim()) {
       setError('A reason is required to cancel a session.')
       return
@@ -142,7 +147,7 @@ function SessionModal({ station, kind, onClose }) {
     setSubmitting(true)
     setError('')
     try {
-      if (kind === 'transfer') transferSession(station.id, target, station.session)
+      if (kind === 'transfer') await transferSession(station.id, target, station.session)
       if (kind === 'extend') extendSession(station.id, minutes)
       if (kind === 'pause') await pauseSession(station.id, !station.session.paused, reason)
       if (kind === 'cancel') await cancelSession(station.id, reason)
@@ -156,8 +161,8 @@ function SessionModal({ station, kind, onClose }) {
       setSubmitting(false)
     }
   }
-  const labels = { transfer: ['Transfer session', 'Choose an available station. Products and session details move with the player.'], extend: ['Extend fixed session', 'Add time before the countdown expires.'], pause: [station.session?.paused ? 'Resume session' : 'Pause session', 'Change the session state.'], cancel: ['Cancel session', 'Cancellation requires a reason and is added to the audit log.'], reopen: ['Reopen expired session', 'Reopen within the display grace window.'], end: ['End session', 'Review the session and close it for billing.'], reverse: ['Reverse payment', 'Reverse a completed session.'] }
-  return <Modal title={labels[kind][0]} eyebrow={labels[kind][1]} onClose={onClose}><form className="modal-form" onSubmit={submit}>{kind === 'transfer' && <label>Available station<select value={target} onChange={(event) => setTarget(event.target.value)} required>{available.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.type}</option>)}</select></label>}{['extend', 'reopen'].includes(kind) && <label>{kind === 'extend' ? 'Additional minutes' : 'Reopen for minutes'}<input type="number" min="1" max="240" value={minutes} onChange={(event) => setMinutes(event.target.value)} required /></label>}{kind === 'cancel' && <label>Cancellation reason<textarea value={reason} onChange={(event) => setReason(event.target.value)} required placeholder="Enter why this session is being cancelled..." /></label>}{kind === 'end' && <label>Payment method<select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="cash">Cash</option><option value="mobile_money">Mobile money</option><option value="card">Card</option><option value="bank">Bank</option><option value="membership">Membership</option><option value="other">Other</option></select></label>}{error && <small className="form-error" role="alert">{error}</small>}<div className="modal-actions"><button className="button button-secondary" type="button" onClick={onClose} disabled={submitting}>← Back</button><button className="button button-primary" type="submit" disabled={submitting}>{submitting ? 'Saving…' : kind === 'cancel' ? 'Cancel session' : kind === 'transfer' ? 'Transfer now' : kind === 'pause' && station.session?.paused ? 'Resume session' : kind === 'pause' ? 'Pause session' : kind === 'end' ? 'End & bill' : kind === 'reverse' ? 'Reverse payment' : 'Confirm'}</button></div></form></Modal>
+  const labels = { transfer: ['Change station', 'Move the player to a free console. Session time and billing continue.'], extend: ['Extend fixed session', 'Add time before the countdown expires.'], pause: [station.session?.paused ? 'Resume session' : 'Pause session', 'Change the session state.'], cancel: ['Cancel session', 'Cancellation requires a reason and is added to the audit log.'], reopen: ['Reopen expired session', 'Reopen within the display grace window.'], end: ['End session', 'Review the session and close it for billing.'], reverse: ['Reverse payment', 'Reverse a completed session.'] }
+  return <Modal title={labels[kind][0]} eyebrow={labels[kind][1]} onClose={onClose}><form className="modal-form" onSubmit={submit}>{kind === 'transfer' && <label>Free destination station<select value={target} onChange={(event) => setTarget(event.target.value)} required disabled={!available.length}>{available.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.type}</option>)}</select>{!available.length && <small className="form-error">No free stations are available right now.</small>}</label>}{['extend', 'reopen'].includes(kind) && <label>{kind === 'extend' ? 'Additional minutes' : 'Reopen for minutes'}<input type="number" min="1" max="240" value={minutes} onChange={(event) => setMinutes(event.target.value)} required /></label>}{kind === 'cancel' && <label>Cancellation reason<textarea value={reason} onChange={(event) => setReason(event.target.value)} required placeholder="Enter why this session is being cancelled..." /></label>}{kind === 'end' && <label>Payment method<select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="cash">Cash</option><option value="mobile_money">Mobile money</option><option value="card">Card</option><option value="bank">Bank</option><option value="membership">Membership</option><option value="other">Other</option></select></label>}{error && <small className="form-error" role="alert">{error}</small>}<div className="modal-actions"><button className="button button-secondary" type="button" onClick={onClose} disabled={submitting}>← Back</button><button className="button button-primary" type="submit" disabled={submitting || (kind === 'transfer' && !available.length)}>{submitting ? 'Saving…' : kind === 'cancel' ? 'Cancel session' : kind === 'transfer' ? 'Transfer now' : kind === 'pause' && station.session?.paused ? 'Resume session' : kind === 'pause' ? 'Pause session' : kind === 'end' ? 'End & bill' : kind === 'reverse' ? 'Reverse payment' : 'Confirm'}</button></div></form></Modal>
 }
 
 function StationCard({ station, onAction, onView, onStatusChange, onDelete }) {
@@ -213,12 +218,12 @@ function StationCard({ station, onAction, onView, onStatusChange, onDelete }) {
     }
   }
   const statusClass = isPaused ? 'paused' : station.status
-  const statusText = station.status === 'playing' ? (isPaused ? 'Paused' : 'Playing') : station.status
+  const statusText = station.status === 'playing' ? (isPaused ? 'Paused' : 'In use') : station.status === 'available' ? 'Free' : station.status === 'maintenance' ? 'Maintenance' : 'Reserved'
   const openDetails = () => onView?.(station)
   return <article className={`station-card station-card-interactive station-${station.status} ${isPaused ? 'station-paused' : ''}`} aria-label={`${station.name}, ${statusText}`} tabIndex={0} onClick={(event) => { if (!event.target.closest('button')) openDetails() }} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openDetails() } }}>
     <div className="station-card-head"><span className="station-id">{station.name}</span><span className={`status-pill ${statusClass}`}>{statusText}</span></div>
     <div className="station-screen">
-      <span className="station-type"><svg viewBox="0 0 40 30" aria-hidden="true"><rect x="2" y="2" width="36" height="22" rx="3" /><path d="M14 28h12M20 24v4" /></svg>Hardware: {normalizedType}</span>
+      <span className="station-type"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9.1 12.2 6.4 10c-1-.8-2.3-.3-2.6.9L2.5 17c-.3 1.2.5 2.4 1.8 2.6l5.4.8 1.5 2.4c.5.8 1.3 1.2 2.2 1.2h5.2c.9 0 1.7-.4 2.2-1.2l1.5-2.4 5.4-.8c1.3-.2 2.1-1.4 1.8-2.6l-1.3-6.1c-.3-1.2-1.6-1.7-2.6-.9l-2.7 2.2c-1.1-.7-2.5-1.1-4-1.1h-6c-1.5 0-2.9.4-4 1.1Z" /><path d="M10 16h.1m-2.1 2.1h.1m13.8-2.1h.1m2.1 2.1h.1M15 16h2" /></svg>Hardware: {normalizedType}</span>
       <strong>{station.status === 'playing' ? station.session?.customer : station.status === 'reserved' ? station.reservation?.customer || 'Reserved' : station.status === 'maintenance' ? 'Maintenance' : 'Ready to play'}</strong>
       <small>{station.status === 'playing' ? `${liveElapsed || '00:00:00'} · ${liveAmount || formatBirr(0)}` : station.status === 'maintenance' ? station.reason || 'Unavailable for service' : 'No active session'}</small>
     </div>
@@ -228,7 +233,7 @@ function StationCard({ station, onAction, onView, onStatusChange, onDelete }) {
       {station.status === 'available' && <><button type="button" className="button button-primary" disabled={busy} onClick={() => start('Open')}>Start</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => changeStatus('reserved')}>Reserve</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => changeStatus('maintenance')}>Maintenance</button></>}
       {station.status === 'reserved' && <><button type="button" className="button button-primary" disabled={busy} onClick={() => start('Fixed')}>Start</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => changeStatus('available')}>Available</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => changeStatus('maintenance')}>Maintenance</button></>}
       {station.status === 'maintenance' && <><button type="button" className="button button-primary" disabled={busy} onClick={() => changeStatus('available')}>Set available</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => changeStatus('reserved')}>Reserve</button></>}
-      {station.status === 'playing' && <><button type="button" className="button button-secondary" disabled={busy} onClick={() => onAction('pause', station)}>{isPaused ? 'Resume' : 'Pause'}</button><button type="button" className="button button-danger" disabled={busy} onClick={() => onAction('end', station)}>End</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => onAction('cancel', station)}>Cancel</button></>}
+      {station.status === 'playing' && <><button type="button" className="button button-secondary" disabled={busy} onClick={() => onAction('pause', station)}>{isPaused ? 'Resume' : 'Pause'}</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => onAction('transfer', station)}>Change station</button><button type="button" className="button button-danger" disabled={busy} onClick={() => onAction('end', station)}>End</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => onAction('cancel', station)}>Cancel</button></>}
       <button type="button" className="button button-danger" disabled={busy || station.status === 'playing'} onClick={runDelete}>Delete</button>
     </div>
   </article>
@@ -509,20 +514,20 @@ function Reports({ auditLog }) {
     {error && <small className="form-error" role="alert">{error}</small>}
     {loading && <p className="report-loading">Loading report…</p>}
     <div className="stats-grid report-stats"><StatCard label="Realized revenue" value={`${formatBirr(revenue)}`} note={`Selected period · ${selectedPeriodLabel}`} /><StatCard label="Gaming revenue" value={`${formatBirr(Number(values.sessionRevenue || 0))}`} note="Closed sessions" tone="cyan" /><StatCard label="Played hours" value={hours.toFixed(2)} note="Completed session duration" tone="purple" /><StatCard label="Inventory sales" value={`${formatBirr(inventorySales)}`} note="Product sales in range" tone="orange" /></div>
+    <section className="panel analytics-chart-panel analytics-chart-featured"><div className="panel-heading"><div><span className="eyebrow">Performance overview</span><h3>Revenue &amp; playing hours</h3></div><span className="report-date-range">{report?.range?.start ? `${new Date(report.range.start).toLocaleDateString()} – ${new Date(report.range.end).toLocaleDateString()}` : selectedPeriodLabel}</span></div><AnalyticsChart buckets={buckets} /></section>
     <section className="panel report-breakdown"><div className="panel-heading"><div><span className="eyebrow">Period breakdown</span><h3>{selectedPeriodLabel}</h3></div><span className="status-pill available">{report?.count ?? 0} records</span></div><div className="report-breakdown-grid"><span>Completed sessions <strong>{values.sessionCount ?? 0}</strong></span><span>Inventory units sold <strong>{values.inventoryUnitsSold ?? 0}</strong></span><span>Payments received <strong>{formatBirr(Number(values.paymentTotal ?? revenue))}</strong></span></div></section>
-    <section className="panel analytics-chart-panel"><div className="panel-heading"><div><span className="eyebrow">Trends</span><h3>Revenue & playing hours</h3></div><span className="report-date-range">{report?.range?.start ? `${new Date(report.range.start).toLocaleDateString()} – ${new Date(report.range.end).toLocaleDateString()}` : ''}</span></div><AnalyticsChart buckets={buckets} /></section>
     <section className="panel report-table-panel"><div className="panel-heading"><div><span className="eyebrow">Detailed results</span><h3>Revenue & activity by {report?.range?.bucket || 'period'}</h3></div><span className="report-date-range">{report?.range?.start ? `${new Date(report.range.start).toLocaleDateString()} – ${new Date(report.range.end).toLocaleDateString()}` : ''}</span></div><div className="report-table-scroll"><table className="report-table"><thead><tr><th>Date / period</th><th>Total revenue</th><th>Gaming</th><th>Product sales</th><th>Memberships</th><th>Play hours</th><th>Sessions</th><th>Units sold</th></tr></thead><tbody>{buckets.map((bucket) => <tr key={bucket.date}><td>{formatBucketDate(bucket.date)}</td><td>{formatBirr(Number(bucket.revenue || 0))}</td><td>{formatBirr(Number(bucket.sessionRevenue || 0))}</td><td>{formatBirr(Number(bucket.inventorySales || 0))}</td><td>{formatBirr(Number(bucket.membershipRevenue || 0))}</td><td>{Number(bucket.playedHours || 0).toFixed(2)}</td><td>{bucket.completedSessions || 0}</td><td>{bucket.productUnitsSold || 0}</td></tr>)}</tbody></table>{!buckets.length && !loading && <div className="empty-state">{error ? 'Report data is unavailable.' : 'No activity was recorded for this period.'}</div>}</div></section>
     <div className="settings-grid"><div className="panel settings-card"><span className="eyebrow">Audit trail</span><h3>Staff activity</h3><Activity entries={auditLog} /></div><div className="panel settings-card"><span className="eyebrow">Data source</span><h3>Accurate period totals</h3><p>Reports are calculated from persisted, completed sessions and recorded inventory sales, not browser sample values.</p></div></div>
   </ModulePage>
 }
 
 function AnalyticsChart({ buckets }) {
-  const width = 720
-  const height = 240
-  const left = 48
-  const right = 12
-  const top = 16
-  const bottom = 42
+  const width = 900
+  const height = 320
+  const left = 58
+  const right = 18
+  const top = 22
+  const bottom = 48
   const chartWidth = width - left - right
   const chartHeight = height - top - bottom
   const maxRevenue = Math.max(1, ...buckets.map((bucket) => Number(bucket.revenue || 0)))
@@ -540,16 +545,16 @@ function AnalyticsChart({ buckets }) {
     <div className="analytics-chart-legend"><span><i className="dot lime" />Revenue ({formatBirr(maxRevenue)} scale)</span><span><i className="dot cyan" />Playing hours ({maxHours.toFixed(1)} hrs scale)</span></div>
     {buckets.length ? <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Revenue and playing hours by reporting period">
       <defs><linearGradient id="analytics-revenue-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="var(--lime)" stopOpacity=".24" /><stop offset="100%" stopColor="var(--lime)" stopOpacity="0" /></linearGradient></defs>
-      {[0, 1, 2, 3].map((line) => {
-        const lineY = top + line * chartHeight / 3
+      {[0, 1, 2, 3, 4].map((line) => {
+        const lineY = top + line * chartHeight / 4
         return <line className="analytics-grid-line" key={line} x1={left} x2={width - right} y1={lineY} y2={lineY} />
       })}
       <polygon className="analytics-revenue-area" points={revenueArea} />
       <polyline className="analytics-revenue-line" points={revenuePoints} />
       <polyline className="analytics-hours-line" points={hoursPoints} />
       {buckets.map((bucket, index) => <g key={bucket.date}>
-        <circle className="analytics-revenue-point" cx={x(index)} cy={y(bucket.revenue, maxRevenue)} r="3"><title>{new Date(bucket.date).toLocaleDateString()}: {formatBirr(Number(bucket.revenue || 0))}</title></circle>
-        <circle className="analytics-hours-point" cx={x(index)} cy={y(bucket.playedHours, maxHours)} r="3"><title>{new Date(bucket.date).toLocaleDateString()}: {Number(bucket.playedHours || 0).toFixed(2)} playing hours</title></circle>
+        <circle className="analytics-revenue-point" cx={x(index)} cy={y(bucket.revenue, maxRevenue)} r="4"><title>{new Date(bucket.date).toLocaleDateString()}: {formatBirr(Number(bucket.revenue || 0))}</title></circle>
+        <circle className="analytics-hours-point" cx={x(index)} cy={y(bucket.playedHours, maxHours)} r="4"><title>{new Date(bucket.date).toLocaleDateString()}: {Number(bucket.playedHours || 0).toFixed(2)} playing hours</title></circle>
       </g>)}
       {labelIndexes.map((index) => <text className="analytics-axis-label" key={index} x={x(index)} y={height - 12} textAnchor={index === 0 ? 'start' : index === buckets.length - 1 ? 'end' : 'middle'}>{new Date(buckets[index].date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</text>)}
     </svg> : <div className="empty-state">No trend data is available for this period.</div>}

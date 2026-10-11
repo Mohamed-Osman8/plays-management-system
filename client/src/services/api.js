@@ -185,6 +185,13 @@ export function reverseStationSession(id, data = {}) {
   return request(`/sessions/${id}/reverse`, { method: 'PUT', body: JSON.stringify(data) })
 }
 
+export function transferStationSession(id, stationId) {
+  return request(`/sessions/${id}/transfer`, {
+    method: 'PUT',
+    body: JSON.stringify({ stationId })
+  })
+}
+
 export function getFinancialReports(filters = {}) {
   const query = new URLSearchParams(
     Object.entries(filters).filter(([, value]) => value !== undefined && value !== '')

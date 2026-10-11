@@ -5,8 +5,8 @@
   --line: #d8e0e8;
   --text: #1b2733;
   --muted: #617181;
-  --lime: #557b00;
-  --cyan: #007e8a;
+  --lime: #0072ce;
+  --cyan: #1687ff;
   --purple: #6745b5;
   --orange: #a85a15;
   --red: #b83248;
@@ -18,7 +18,7 @@
 :root[data-theme='light'] .public-portal,
 :root[data-theme='light'] .lock-screen {
   color: var(--text);
-  background: radial-gradient(circle at 85% 5%, #d9f0ee 0, transparent 34%), var(--bg);
+  background: radial-gradient(circle at 85% 5%, #dceeff 0, transparent 34%), var(--bg);
 }
 
 :root[data-theme='light'] .sidebar,
@@ -61,13 +61,13 @@
 }
 
 :root[data-theme='light'] .station-playing .station-screen {
-  border-color: #60a5bc;
-  background: radial-gradient(ellipse at 50% 20%, #dff2f7, #f4fafb 78%);
+  border-color: #4c9be6;
+  background: radial-gradient(ellipse at 50% 20%, #dceeff, #f4f8fc 78%);
 }
 
 :root[data-theme='light'] .station-available .station-screen {
-  border-color: #86a967;
-  background: radial-gradient(ellipse at 50% 20%, #e2f0d9, #f6f9f3 78%);
+  border-color: #5ba5e8;
+  background: radial-gradient(ellipse at 50% 20%, #dceeff, #f4f8fc 78%);
 }
 
 :root[data-theme='light'] .station-paused .station-screen {
@@ -86,13 +86,13 @@
 }
 
 :root[data-theme='light'] .status-pill.available {
-  color: #376000;
-  background: #e5f2d8;
+  color: #075ba7;
+  background: #dceeff;
 }
 
 :root[data-theme='light'] .status-pill.playing {
-  color: #086b85;
-  background: #ddf2f8;
+  color: #075ba7;
+  background: #dceeff;
 }
 
 :root[data-theme='light'] .status-pill.paused {
@@ -112,11 +112,11 @@
 
 :root[data-theme='light'] .button-primary {
   color: #fff;
-  background: #557b00;
+  background: #0072ce;
 }
 
 :root[data-theme='light'] .button-primary:hover {
-  background: #456600;
+  background: #005faf;
 }
 
 :root[data-theme='light'] .button-secondary:hover,

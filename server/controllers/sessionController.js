@@ -113,6 +113,58 @@ export async function resumeSession(req, res, next) {
   }
 }
 
+export async function transferSession(req, res, next) {
+  let targetStation
+  let reservedTarget = false
+  let movedSession
+  try {
+    const { stationId } = req.body || {}
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid session ID.' })
+    if (!mongoose.isValidObjectId(stationId)) return res.status(400).json({ message: 'Select a valid destination station.' })
+
+    const session = await PlaySession.findById(req.params.id)
+    if (!session) return res.status(404).json({ message: 'Session not found.' })
+    if (!['active', 'paused'].includes(session.status)) return res.status(409).json({ message: 'Only an active or paused session can be transferred.' })
+    if (String(session.station) === String(stationId)) return res.status(400).json({ message: 'Choose a different station.' })
+
+    const sourceStation = await Station.findById(session.station)
+    if (!sourceStation) return res.status(404).json({ message: 'The current station for this session was not found.' })
+    targetStation = await Station.findById(stationId)
+    if (!targetStation) return res.status(404).json({ message: 'Destination station not found.' })
+    if (targetStation.status !== 'available') return res.status(409).json({ message: 'Destination station is no longer free.' })
+
+    const lockedTarget = await Station.findOneAndUpdate(
+      { _id: targetStation._id, status: 'available' },
+      { $set: { status: 'playing' } },
+      { new: true }
+    )
+    if (!lockedTarget) return res.status(409).json({ message: 'Destination station is no longer free.' })
+    reservedTarget = true
+
+    movedSession = await PlaySession.findOneAndUpdate(
+      { _id: session._id, station: sourceStation._id, status: { $in: ['active', 'paused'] } },
+      { $set: { station: lockedTarget._id, stationName: lockedTarget.name } },
+      { new: true, runValidators: true }
+    )
+    if (!movedSession) {
+      await Station.updateOne({ _id: lockedTarget._id, status: 'playing' }, { $set: { status: 'available' } })
+      reservedTarget = false
+      return res.status(409).json({ message: 'This session changed before it could be transferred. Refresh the floor plan and try again.' })
+    }
+
+    await Station.updateOne({ _id: sourceStation._id, status: 'playing' }, { $set: { status: 'available' } })
+    return res.json({ session: movedSession })
+  } catch (error) {
+    if (movedSession) {
+      return res.json({ session: movedSession, warning: 'The session moved, but the previous station status could not be updated. Refresh the floor plan.' })
+    }
+    if (reservedTarget && targetStation) {
+      await Station.updateOne({ _id: targetStation._id, status: 'playing' }, { $set: { status: 'available' } })
+    }
+    return next(error)
+  }
+}
+
 export async function endSession(req, res, next) {
   try {
     const session = await findSession(req.params.id)

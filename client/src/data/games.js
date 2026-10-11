@@ -5,9 +5,9 @@ export const featuredGames = [
     category: 'Action',
     rating: 4.9,
     players: '1-4 players',
-    accent: '#c8f45d',
+    accent: '#0080ff',
     visual: '⚡',
-    gradient: 'linear-gradient(135deg, #163b3b 0%, #10181e 58%, #c8f45d 160%)'
+    gradient: 'linear-gradient(135deg, #163b5b 0%, #10181e 58%, #0080ff 160%)'
   },
   {
     id: 'velocity-x',

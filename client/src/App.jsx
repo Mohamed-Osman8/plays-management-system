@@ -71,18 +71,20 @@ function PublicPortal() {
         </a>
         <span className="public-header-actions">
           <PwaInstallButton />
-          <button className="button button-secondary" type="button" onClick={() => setShowStaffLogin(true)}>Staff portal</button>
+          <button className="button button-secondary public-staff-button" type="button" onClick={() => setShowStaffLogin(true)}>Staff portal</button>
+          <button className="button button-primary public-create-shop" type="button" onClick={() => setRoute('register')}>Create shop <span aria-hidden="true">↗</span></button>
         </span>
       </header>
       <div className="public-content">
-        <section className="public-showcase">
+        <section className="public-showcase" id="hardware">
           <div className="public-showcase-copy">
-            <span className="public-kicker"><i /> GAME ZONE MANAGEMENT, MADE SIMPLE</span>
-            <h1>Your game zone.<br /><span>Running at full play.</span></h1>
+            <span className="public-kicker"><i /> BUILT FOR THE NEXT GENERATION OF GAME ZONES</span>
+            <h1>Play has<br /><span>no limits.</span></h1>
+            <h2 className="public-hero-subtitle">Smart PlayStation management.</h2>
             <p>Keep every station, session and sale in sync. A smarter way to run your PlayStation business, from any screen.</p>
             <div className="public-hero-actions">
-              <button className="button button-primary" type="button" onClick={() => setRoute('demo')}>Explore the live demo <span aria-hidden="true">↗</span></button>
-              <button className="public-book-link" type="button" onClick={() => document.getElementById('book-station')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Book a station <span aria-hidden="true">↓</span></button>
+              <button className="button button-primary public-blue-button" type="button" onClick={() => setRoute('register')}>Create your shop now <span aria-hidden="true">↗</span></button>
+              <button className="button button-secondary public-demo-button" type="button" onClick={() => setRoute('demo')}>Explore live demo <span aria-hidden="true">→</span></button>
             </div>
             <div className="public-proof">
               <span><b>{stations.length}</b><small>stations on the floor</small></span>
@@ -95,14 +97,19 @@ function PublicPortal() {
           <div className="public-showcase-art" aria-label="Game Zone live station preview">
             <div className="showcase-orbit showcase-orbit-one" />
             <div className="showcase-orbit showcase-orbit-two" />
-            <div className="showcase-console"><BrandMark /></div>
+            <div className="showcase-console"><BrandMark /><span className="console-platform-label">PLAYSTATION<br /><b>GAME ZONE</b></span></div>
             <div className="showcase-float showcase-live"><i /><span><b>LIVE FLOOR PLAN</b><small>Everything in control</small></span><span className="showcase-arrow">↗</span></div>
             <div className="showcase-float showcase-stations"><span className="showcase-station-icon">▣</span><span><b>{available.length} stations ready</b><small>Real-time availability</small></span></div>
             <div className="showcase-caption">PLAY <span>·</span> MANAGE <span>·</span> GROW</div>
           </div>
         </section>
+        <aside className="developer-banner" id="contact">
+          <span className="developer-spark" aria-hidden="true">✦</span>
+          <span><b>Powered &amp; Developed by Mohamed Osman</b><small>Contact for support &amp; custom setup</small></span>
+          <a href="tel:+251940867287"><span aria-hidden="true">| </span>Call +251 940 867 287 <span aria-hidden="true">↗</span></a>
+        </aside>
         <section className="public-booking-section" id="book-station">
-          <div className="public-section-heading"><div><span className="eyebrow">YOUR NEXT SESSION</span><h2>Save your spot.</h2><p>Send a booking request and our team will confirm it.</p></div><span className="booking-section-tag"><i /> {available.length ? 'Stations available' : 'Check back soon'}</span></div>
+          <div className="public-section-heading" id="stations"><div><span className="eyebrow">YOUR NEXT SESSION</span><h2>Book your next play.</h2><p>Choose a console and send your station request to the team.</p></div><span className="booking-section-tag"><i /> {available.length ? 'Stations available' : 'Check back soon'}</span></div>
           <div className="public-grid">
             <form className="panel public-booking-card" onSubmit={submit}>
               <div className="booking-form-heading"><span className="booking-icon">⌁</span><div><span className="eyebrow">REMOTE RESERVATION</span><h3>Book a station</h3></div></div>
@@ -119,13 +126,22 @@ function PublicPortal() {
               <small className="booking-form-note">Your request is confirmed by the game zone team.</small>
             </form>
             <aside className="panel public-status-card">
-              <div className="booking-form-heading"><span className="booking-icon booking-icon-cyan">◷</span><div><span className="eyebrow">LIVE FROM THE FLOOR</span><h3>{confirmation ? 'Your request' : 'Station availability'}</h3></div></div>
+              <div className="booking-form-heading" id="live-sessions"><span className="booking-icon booking-icon-cyan">◷</span><div><span className="eyebrow">LIVE FROM THE FLOOR</span><h3>{confirmation ? 'Your request' : 'Live floor plan'}</h3></div></div>
               {confirmation ? <div className="confirmation-card"><span className="confirmation-check">✓</span><h2>Request received</h2><strong>{confirmation.confirmation}</strong><p className={currentBooking?.status === 'Approved' ? 'acceptance-message' : ''}>{statusMessage}</p><small>Grace period: {confirmation.graceMinutes} minutes after approval.</small>{currentBooking && currentBooking.status !== 'Pending approval' && <b className={`booking-result ${currentBooking.status === 'Approved' ? 'approved' : 'rejected'}`}>{currentBooking.status === 'Approved' ? 'Approved / Confirmed' : currentBooking.status}</b>}</div> : <p className="availability-intro">Pick an available console and send a request. We’ll confirm your spot shortly.</p>}
-              <div className="availability-list">{stations.length ? stations.map((station) => <div key={station.id}><span><i className={`availability-dot ${station.status}`} />{station.name}<small>{station.type}</small></span><b className={`status-pill ${station.status}`}>{station.status === 'available' ? 'Available' : station.status === 'playing' ? 'In use' : station.status}</b></div>) : <div className="availability-empty">Stations will appear here when the floor is online.</div>}</div>
+              <div className="availability-list">{stations.length ? stations.map((station) => <div key={station.id}><span><i className={`availability-dot ${station.status}`} />{station.name}<small>{station.type}</small></span><b className={`status-pill ${station.status}`}>{station.status === 'available' ? 'Free' : station.status === 'playing' ? 'In use' : station.status === 'maintenance' ? 'Maintenance' : 'Reserved'}</b></div>) : <div className="availability-empty">Stations will appear here when the floor is online.</div>}</div>
             </aside>
           </div>
         </section>
-        <footer className="public-footer"><span>© 2026 PLAYSTATION GAME ZONE</span><span><button className="text-button" type="button" onClick={() => setRoute('super-admin')}>Platform administration</button><i /> Customer booking portal</span></footer>
+        <section className="public-owner-cta" aria-label="Create a shop account">
+          <span className="owner-cta-icon" aria-hidden="true"><BrandMark /></span>
+          <div>
+            <span className="eyebrow">BUILT FOR GAME ZONE OWNERS</span>
+            <h2>Want to manage your own PlayStation lounge?</h2>
+            <p>Create your shop and bring stations, sessions, sales, and reports together.</p>
+          </div>
+          <button className="button button-primary public-owner-button" type="button" onClick={() => setRoute('register')}>Create your shop now <span aria-hidden="true">→</span></button>
+        </section>
+        <footer className="public-footer"><span>© 2026 PLAYSTATION GAME ZONE <i /> Built by Mohamed Osman · <a href="tel:+251940867287">+251 940 867 287</a></span><span><button className="text-button" type="button" onClick={() => setRoute('super-admin')}>Platform administration</button><i /> Customer booking portal</span></footer>
       </div>
       {showStaffLogin && <StaffLoginModal onClose={() => setShowStaffLogin(false)} />}
     </main>
@@ -246,7 +262,7 @@ function AppShell() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     window.localStorage.setItem('game-zone-theme', theme)
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f2f5f8' : '#090d12')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f2f5f8' : '#0b0f17')
   }, [theme])
 
   useEffect(() => {

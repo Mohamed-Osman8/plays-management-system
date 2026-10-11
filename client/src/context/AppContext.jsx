@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer } from 'react'
 import { AppContext } from './context'
-import { approveBooking, cancelStationSession, createUser, getBookings, getShopSettings, getSessions, listStations, pauseStationSession, rejectBooking, resumeStationSession, reverseStationSession, staffLogin, startStationSession, stopStationSession, submitBooking, updateShopSettings } from '../services/api'
+import { approveBooking, cancelStationSession, createUser, getBookings, getShopSettings, getSessions, listStations, pauseStationSession, rejectBooking, resumeStationSession, reverseStationSession, staffLogin, startStationSession, stopStationSession, submitBooking, transferStationSession, updateShopSettings } from '../services/api'
 import { formatBirr } from '../utils/currency'
 
 function storedRemoteReservations() {
@@ -72,7 +72,7 @@ function reducer(state, action) {
     case 'START': return { ...audit({ action: `started ${action.sessionType.toLowerCase()} session at ${action.id}`, value: 'New session', tone: 'lime' }), stations: state.stations.map((station) => station.id === action.id ? { ...station, status: 'playing', session: { customer: action.sessionInfo?.customerName || action.customer || 'Walk-in player', elapsed: '00:00:00', elapsedSeconds: 0, pausedDurationMs: 0, amount: formatBirr(0), type: action.sessionType, paused: false, fixedMinutes: action.fixedMinutes || 60, products: [], sessionId: action.sessionInfo?._id, startedAt: action.sessionInfo?.startedAt || new Date().toISOString(), ratePerMinute: Number(action.sessionInfo?.hourlyRate || 0) / 60 } } : station) }
     case 'END': return { ...audit({ action: `ended session at ${action.id}`, value: action.reason || 'Final bill', tone: 'lime' }), stations: state.stations.map((station) => station.id === action.id ? { ...station, status: 'available', session: undefined } : station) }
     case 'PAUSE': return { ...audit({ action: `${action.paused ? 'paused' : 'resumed'} session at ${action.id}`, value: action.reason || 'Session control', tone: 'purple' }), stations: state.stations.map((station) => station.id === action.id ? { ...station, session: { ...station.session, paused: action.paused, pausedAt: action.paused ? new Date().toISOString() : null, pausedDurationMs: action.pausedDurationMs ?? station.session?.pausedDurationMs } } : station) }
-    case 'TRANSFER': return { ...audit({ action: `transferred session from ${action.from} to ${action.to}`, value: 'Products carried over', tone: 'cyan' }), stations: state.stations.map((station) => station.id === action.from ? { ...station, status: 'available', session: undefined } : station.id === action.to ? { ...station, status: 'playing', session: action.session } : station) }
+    case 'TRANSFER': return { ...audit({ action: `transferred session from ${action.from} to ${action.to}`, value: 'Session timer and player carried over', tone: 'cyan' }), stations: state.stations.map((station) => station.id === action.from ? { ...station, status: 'available', session: undefined } : station.id === action.to ? { ...station, status: 'playing', session: { ...action.session, sessionId: action.sessionInfo?._id || action.session.sessionId, startedAt: action.sessionInfo?.startedAt || action.session.startedAt, paused: action.sessionInfo?.status === 'paused' || action.session.paused, pausedAt: action.sessionInfo?.pausedAt ?? action.session.pausedAt, pausedDurationMs: action.sessionInfo?.pausedDurationMs ?? action.session.pausedDurationMs } } : station) }
     case 'EXTEND': return { ...audit({ action: `extended session at ${action.id}`, value: `+${action.minutes} minutes`, tone: 'cyan' }), stations: state.stations.map((station) => station.id === action.id ? { ...station, session: { ...station.session, fixedMinutes: (station.session.fixedMinutes || 0) + Number(action.minutes) } } : station) }
     case 'CANCEL': return { ...audit({ action: `cancelled session at ${action.id}`, value: action.reason, tone: 'orange' }), stations: state.stations.map((station) => station.id === action.id ? { ...station, status: 'available', session: undefined } : station) }
     case 'REOPEN': return { ...audit({ action: `reopened expired session at ${action.id}`, value: `${action.minutes} minutes`, tone: 'lime' }), stations: state.stations.map((station) => station.id === action.id ? { ...station, status: 'playing', session: { ...action.session, expired: false, fixedMinutes: action.minutes } } : station) }
@@ -284,7 +284,13 @@ export function AppProvider({ children }) {
       dispatch({ type: 'PAUSE', id, paused, reason, pausedDurationMs: result.session?.pausedDurationMs })
       notifyStationsChanged()
     },
-    transferSession: (from, to, session) => dispatch({ type: 'TRANSFER', from, to, session }),
+    transferSession: async (from, to, session) => {
+      const sessionId = session?.sessionId
+      if (!sessionId) throw new Error('This session has no server record. Refresh stations before transferring it.')
+      const result = await transferStationSession(sessionId, to)
+      dispatch({ type: 'TRANSFER', from, to, session, sessionInfo: result.session })
+      notifyStationsChanged()
+    },
     extendSession: (id, minutes) => dispatch({ type: 'EXTEND', id, minutes }),
     cancelSession: async (id, reason) => {
       const station = state.stations.find((item) => item.id === id)
