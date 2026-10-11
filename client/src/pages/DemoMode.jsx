@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../context/useApp'
 import { formatBirr } from '../utils/currency'
+import BrandMark from '../components/BrandMark'
 
 const initialStations = [
   { id: 'demo-ps5-01', name: 'PS5 · Alpha', type: 'PS5', status: 'playing', hourlyRate: 80, startedAt: -42 * 60, elapsedSeconds: 0 },
@@ -57,12 +58,12 @@ export default function DemoMode() {
     <main className="demo-experience">
       <header className="demo-topbar">
         <a className="sidebar-brand" href="#home" onClick={(event) => { event.preventDefault(); setRoute('booking') }}>
-          <span className="brand-mark">P</span><span>GAME<br /><b>ZONE</b></span>
+          <BrandMark /><span>GAME<br /><b>ZONE</b></span>
         </a>
         <span className="demo-label">INTERACTIVE DEMO · SAMPLE DATA</span>
         <div className="demo-top-actions">
           <button className="button button-secondary" type="button" onClick={() => setRoute('booking')}>Exit demo</button>
-          <button className="button button-primary" type="button" onClick={() => setRoute('register')}>Start 60-day trial</button>
+          <button className="button button-primary" type="button" onClick={() => setRoute('register')}>Create your shop</button>
         </div>
       </header>
 
@@ -111,7 +112,7 @@ export default function DemoMode() {
           </aside>
         </section>
 
-        <div className="demo-bottom-cta"><span><strong>Ready to manage your own store?</strong><small>Register in minutes. Your 60-day free trial starts automatically.</small></span><button className="button button-primary" type="button" onClick={() => setRoute('register')}>Create your shop →</button></div>
+        <div className="demo-bottom-cta"><span><strong>Ready to manage your own store?</strong><small>Register in minutes and start managing your game zone.</small></span><button className="button button-primary" type="button" onClick={() => setRoute('register')}>Create your shop →</button></div>
         <p className="demo-disclaimer">Demo mode is isolated from your account and does not create, update or delete server records.</p>
       </div>
     </main>

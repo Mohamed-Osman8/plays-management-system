@@ -33,7 +33,7 @@ export async function registerShop(req, res, next) {
       return res.status(409).json({ message: 'That username or phone number is already registered.' })
     }
     const passwordHash = await bcrypt.hash(password, 12)
-    const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     shop = await Shop.create({
       name,
       phone,
@@ -51,7 +51,7 @@ export async function registerShop(req, res, next) {
       pinHash: passwordHash
     })
     return res.status(201).json({
-      message: 'Your shop is registered with a 2-month free trial.',
+      message: 'Your shop is registered successfully.',
       user: publicUser(user),
       shop: { id: String(shop._id), name: shop.name, license: shop.license }
     })

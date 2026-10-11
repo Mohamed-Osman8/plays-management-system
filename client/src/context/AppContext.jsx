@@ -51,6 +51,10 @@ const initialState = {
   shop: { name: 'Game Zone', phone: '', address: '', rates: { ps4: 0.12, ps5: 0.18, vip: 0.25, other: 0.1 } },
 }
 
+function notifyStationsChanged() {
+  window.dispatchEvent(new Event('stations-updated'))
+}
+
 function reducer(state, action) {
   const audit = (entry) => ({ ...state, auditLog: [{ id: Date.now(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), user: state.user, ...entry }, ...state.auditLog] })
   switch (action.type) {
@@ -260,6 +264,7 @@ export function AppProvider({ children }) {
         ...details
       })
       dispatch({ type: 'START', id, sessionType, sessionInfo: result.session, ...details })
+      notifyStationsChanged()
     },
     endSession: async (id, reason, paymentMethod = 'cash') => {
       const station = state.stations.find((item) => item.id === id)
@@ -267,6 +272,7 @@ export function AppProvider({ children }) {
       if (!sessionId) throw new Error('This session has no server record. Refresh stations before ending it.')
       await stopStationSession(sessionId, { reason, paymentMethod })
       dispatch({ type: 'END', id, reason })
+      notifyStationsChanged()
     },
     pauseSession: async (id, paused, reason) => {
       const station = state.stations.find((item) => item.id === id)
@@ -276,6 +282,7 @@ export function AppProvider({ children }) {
         ? await pauseStationSession(sessionId, { reason })
         : await resumeStationSession(sessionId, { reason })
       dispatch({ type: 'PAUSE', id, paused, reason, pausedDurationMs: result.session?.pausedDurationMs })
+      notifyStationsChanged()
     },
     transferSession: (from, to, session) => dispatch({ type: 'TRANSFER', from, to, session }),
     extendSession: (id, minutes) => dispatch({ type: 'EXTEND', id, minutes }),
@@ -285,6 +292,7 @@ export function AppProvider({ children }) {
       if (!sessionId) throw new Error('This session has no server record. Refresh stations before cancelling it.')
       await cancelStationSession(sessionId, { reason })
       dispatch({ type: 'CANCEL', id, reason })
+      notifyStationsChanged()
     },
     reverseSession: async (id, reason) => {
       const station = state.stations.find((item) => item.id === id)
@@ -292,6 +300,7 @@ export function AppProvider({ children }) {
       if (!sessionId) throw new Error('This session has no server record to reverse.')
       await reverseStationSession(sessionId, { reason })
       dispatch({ type: 'REVERSE', id, reason })
+      notifyStationsChanged()
     },
     reopenSession: (id, session, minutes) => dispatch({ type: 'REOPEN', id, session, minutes }),
     addProduct: (id, name, quantity) => dispatch({ type: 'STOCK', id, name, quantity }),

@@ -13,7 +13,10 @@ export function printReceipt({ shop, items, gamingCharge = 0, total }) {
     shop?.address ? `<div>${escapeHtml(shop.address)}</div>` : '',
     '<hr />',
     `<div>Gaming charges <b>${formatBirr(gamingCharge)}</b></div>`,
-    ...(items || []).map((item) => `<div>${escapeHtml(item.name)} <b>${formatBirr(item.price)}</b></div>`),
+    ...(items || []).map((item) => {
+      const quantity = Math.max(1, Number(item.quantity || 1))
+      return `<div>${escapeHtml(item.name)}${quantity > 1 ? ` × ${quantity}` : ''} <b>${formatBirr(Number(item.price) * quantity)}</b></div>`
+    }),
     '<hr />',
     `<h2>Total <b>${formatBirr(total)}</b></h2>`,
     `<small>${new Date().toLocaleString()}</small>`

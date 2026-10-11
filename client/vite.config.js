@@ -21,8 +21,8 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         orientation: 'any',
-        background_color: '#10171c',
-        theme_color: '#10171c',
+        background_color: '#090d12',
+        theme_color: '#090d12',
         icons: [
           {
             src: '/pwa-icon-192.png',
@@ -34,7 +34,13 @@ export default defineConfig({
             src: '/pwa-icon-512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable',
+            purpose: 'any',
+          },
+          {
+            src: '/pwa-icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
       },

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useApp } from '../context/useApp'
 import { registerShop } from '../services/api'
+import PwaInstallButton from '../components/PwaInstallButton'
+import BrandMark from '../components/BrandMark'
 
 export default function Register() {
   const { setRoute } = useApp()
@@ -22,7 +24,7 @@ export default function Register() {
         storeName: form.storeName.trim(),
         phone: form.phone.trim(),
       })
-      setSuccess(result.message)
+      setSuccess(result.message || 'Your shop was created successfully. Sign in to continue.')
     } catch (requestError) {
       setError(requestError.message || 'Unable to create your shop.')
     } finally {
@@ -31,11 +33,19 @@ export default function Register() {
   }
 
   return (
-    <main className="onboarding-shell">
+    <main className="onboarding-shell onboarding-page">
+      <header className="onboarding-header">
+        <a className="sidebar-brand" href="#booking" onClick={(event) => { event.preventDefault(); setRoute('booking') }}>
+          <BrandMark />
+          <span>PLAYSTATION<br /><b>GAME ZONE</b></span>
+        </a>
+        <PwaInstallButton />
+      </header>
       <form className="panel onboarding-card" onSubmit={submit}>
-        <span className="eyebrow">Start your free trial</span>
+        <button className="onboarding-close" type="button" aria-label="Close shop registration and return to the booking portal" title="Back to booking portal" onClick={() => setRoute('booking')}>×</button>
+        <span className="eyebrow">Create your store</span>
         <h1>Create your game zone</h1>
-        <p>Register your store with a phone number and receive 60 days of free access.</p>
+        <p>Register your store with a phone number and get started today.</p>
         <label>Store name<input value={form.storeName} onChange={(event) => setForm({ ...form, storeName: event.target.value })} minLength="2" maxLength="120" autoComplete="organization" required disabled={busy || Boolean(success)} /></label>
         <label>Admin phone<input type="tel" inputMode="tel" autoComplete="tel" pattern="\+?[0-9 ]{7,18}" title="Use 7 to 18 digits and spaces, optionally starting with +." value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} required disabled={busy || Boolean(success)} /></label>
         <label>Password<input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength="10" maxLength="128" required disabled={busy || Boolean(success)} /></label>

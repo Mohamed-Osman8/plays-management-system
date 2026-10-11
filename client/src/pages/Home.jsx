@@ -1,13 +1,39 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../context/useApp'
-import { cancelStationSession, createMembership, createProduct, createSale, createStation, deleteProduct, deleteStation, getDashboardSummary, getFinancialReports, getSessions, listMemberships, listProducts, pauseStationSession, recordMembershipPayment, reverseStationSession, resumeStationSession, stopStationSession, updateMembership, updateProduct, updateStationStatus } from '../services/api'
+import { cancelStationSession, createMembership, createProduct, createSale, createStation, deleteProduct, deleteStation, getFinancialReports, getSessions, listMemberships, listProducts, pauseStationSession, recordMembershipPayment, reverseStationSession, resumeStationSession, stopStationSession, updateMembership, updateProduct, updateStationStatus } from '../services/api'
 import { formatBirr } from '../utils/currency'
 import { getProductImage } from '../utils/productImage'
 import { printReceipt } from '../utils/receipt'
+import BrandMark from '../components/BrandMark'
 
-const navItems = [['dashboard', '▦', 'Dashboard'], ['sessions', '◷', 'Sessions'], ['stations', '▣', 'Stations'], ['reservations', '▣', 'Reservations'], ['remote-booking', '⌁', 'Remote booking'], ['hardware', '⚡', 'Hardware health'], ['pos', '⊞', 'POS & Sales'], ['inventory', '◈', 'Inventory'], ['memberships', '◎', 'Memberships'], ['expenses', '↘', 'Expenses'], ['reports', '▤', 'Reports'], ['settings', '⚙', 'Settings']]
+const navItems = [['dashboard', '▦', 'Dashboard'], ['sessions', '◷', 'Sessions'], ['stations', '▣', 'Stations'], ['reservations', '▣', 'Reservations'], ['pos', '⊞', 'POS & Sales'], ['inventory', '◈', 'Inventory'], ['expenses', '↘', 'Expenses'], ['reports', '▤', 'Reports'], ['settings', '⚙', 'Settings']]
 
 function StatCard({ label, value, note, tone = 'lime' }) { return <div className={`stat-card stat-${tone}`}><span>{label}</span><strong>{value}</strong><small>{note}</small></div> }
+
+function groupCartItems(cart) {
+  return cart.reduce((groups, item, index) => {
+    const id = String(item._id || item.id || `${item.name}-${item.price}`)
+    const key = `${id}:${Number(item.price)}`
+    const group = groups.find((entry) => entry.key === key)
+    if (group) {
+      group.quantity += 1
+      group.indexes.push(index)
+    } else {
+      groups.push({ ...item, key, quantity: 1, indexes: [index] })
+    }
+    return groups
+  }, [])
+}
+
+function getStationOccupancy(stations) {
+  const operational = stations.filter((station) => station.status !== 'maintenance').length
+  const occupied = stations.filter((station) => station.status === 'playing').length
+  return {
+    occupied,
+    operational,
+    percent: operational ? Math.round(occupied / operational * 100) : 0
+  }
+}
 
 function Modal({ title, eyebrow, onClose, children }) {
   return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><div className="modal panel" role="dialog" aria-modal="true"><div className="modal-heading"><div><span className="eyebrow">{eyebrow}</span><h3>{title}</h3></div><button className="modal-back" type="button" onClick={onClose} aria-label="Go back without changing session" title="Go back">←</button></div>{children}</div></div>
@@ -31,7 +57,7 @@ function StationDetailsModal({ station, onClose, onAction, onStatusChange }) {
     : Number(session?.elapsedSeconds || 0)
   const elapsed = `${String(Math.floor(elapsedSeconds / 3600)).padStart(2, '0')}:${String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, '0')}:${String(elapsedSeconds % 60).padStart(2, '0')}`
   const amount = session?.startedAt
-    ? formatBirr(elapsedSeconds / 60 * Number(session.ratePerMinute || 0))
+    ? formatBirr(elapsedSeconds / 60 * Number(session.ratePerMinute ?? (Number(station.hourlyRate || 0) / 60)))
     : value(session?.amount)
   const start = async () => {
     setBusy(true)
@@ -67,7 +93,8 @@ function StationDetailsModal({ station, onClose, onAction, onStatusChange }) {
         </div>
       </div>
       <dl className="station-detail-list">
-        <div><dt>Station</dt><dd>{station.name}</dd></div>
+          <div><dt>Station ID</dt><dd>{station.id}</dd></div>
+          <div><dt>Station</dt><dd>{station.name}</dd></div>
         <div><dt>Console</dt><dd>{station.type}</dd></div>
         <div><dt>Status</dt><dd className={`status-pill ${paused ? 'paused' : station.status}`}>{status}</dd></div>
         <div><dt>Hourly rate</dt><dd>{formatBirr(Number(station.hourlyRate || 0))}</dd></div>
@@ -133,8 +160,8 @@ function SessionModal({ station, kind, onClose }) {
   return <Modal title={labels[kind][0]} eyebrow={labels[kind][1]} onClose={onClose}><form className="modal-form" onSubmit={submit}>{kind === 'transfer' && <label>Available station<select value={target} onChange={(event) => setTarget(event.target.value)} required>{available.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.type}</option>)}</select></label>}{['extend', 'reopen'].includes(kind) && <label>{kind === 'extend' ? 'Additional minutes' : 'Reopen for minutes'}<input type="number" min="1" max="240" value={minutes} onChange={(event) => setMinutes(event.target.value)} required /></label>}{kind === 'cancel' && <label>Cancellation reason<textarea value={reason} onChange={(event) => setReason(event.target.value)} required placeholder="Enter why this session is being cancelled..." /></label>}{kind === 'end' && <label>Payment method<select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="cash">Cash</option><option value="mobile_money">Mobile money</option><option value="card">Card</option><option value="bank">Bank</option><option value="membership">Membership</option><option value="other">Other</option></select></label>}{error && <small className="form-error" role="alert">{error}</small>}<div className="modal-actions"><button className="button button-secondary" type="button" onClick={onClose} disabled={submitting}>← Back</button><button className="button button-primary" type="submit" disabled={submitting}>{submitting ? 'Saving…' : kind === 'cancel' ? 'Cancel session' : kind === 'transfer' ? 'Transfer now' : kind === 'pause' && station.session?.paused ? 'Resume session' : kind === 'pause' ? 'Pause session' : kind === 'end' ? 'End & bill' : kind === 'reverse' ? 'Reverse payment' : 'Confirm'}</button></div></form></Modal>
 }
 
-function StationCard({ station, onAction, onView, management = false, onStatusChange, onDelete }) {
-  const { startSession, setRoute } = useApp()
+function StationCard({ station, onAction, onView, onStatusChange, onDelete }) {
+  const { startSession } = useApp()
   const [now, setNow] = useState(() => Date.now())
   const [actionError, setActionError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -161,7 +188,7 @@ function StationCard({ station, onAction, onView, management = false, onStatusCh
     ? Math.max(0, Math.floor((now - new Date(station.session.startedAt).getTime() - Number(station.session.pausedDurationMs || 0) - (station.session.pausedAt ? now - new Date(station.session.pausedAt).getTime() : 0)) / 1000))
     : Number(station.session?.elapsedSeconds || 0)
   const liveElapsed = elapsedSeconds ? `${String(Math.floor(elapsedSeconds / 3600)).padStart(2, '0')}:${String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, '0')}:${String(elapsedSeconds % 60).padStart(2, '0')}` : station.session?.elapsed
-  const rate = Number(station.session?.ratePerMinute ?? (normalizedType === 'PlayStation 5' ? 0.18 : 0.12))
+  const rate = Number(station.session?.ratePerMinute ?? (Number(station.hourlyRate || 0) / 60))
   const liveAmount = station.session?.startedAt ? `${formatBirr((elapsedSeconds / 60 * rate))}` : station.session?.amount
   const changeStatus = async (status) => {
     setBusy(true)
@@ -188,52 +215,41 @@ function StationCard({ station, onAction, onView, management = false, onStatusCh
   const statusClass = isPaused ? 'paused' : station.status
   const statusText = station.status === 'playing' ? (isPaused ? 'Paused' : 'Playing') : station.status
   const openDetails = () => onView?.(station)
-  const handleCardKeyDown = (event) => {
-    if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return
-    event.preventDefault()
-    openDetails()
-  }
-  return <article className={`station-card station-${station.status} ${isPaused ? 'station-paused' : ''} station-card-interactive`} role="group" tabIndex={0} aria-label={`View full details for ${station.name}`} onClick={(event) => { if (!event.target.closest('button')) openDetails() }} onKeyDown={handleCardKeyDown}>
+  return <article className={`station-card station-card-interactive station-${station.status} ${isPaused ? 'station-paused' : ''}`} aria-label={`${station.name}, ${statusText}`} tabIndex={0} onClick={(event) => { if (!event.target.closest('button')) openDetails() }} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openDetails() } }}>
     <div className="station-card-head"><span className="station-id">{station.name}</span><span className={`status-pill ${statusClass}`}>{statusText}</span></div>
     <div className="station-screen">
-      <span className="station-type"><svg viewBox="0 0 40 30" aria-hidden="true"><rect x="2" y="2" width="36" height="22" rx="3" /><path d="M14 28h12M20 24v4" /></svg>{normalizedType}</span>
+      <span className="station-type"><svg viewBox="0 0 40 30" aria-hidden="true"><rect x="2" y="2" width="36" height="22" rx="3" /><path d="M14 28h12M20 24v4" /></svg>Hardware: {normalizedType}</span>
       <strong>{station.status === 'playing' ? station.session?.customer : station.status === 'reserved' ? station.reservation?.customer || 'Reserved' : station.status === 'maintenance' ? 'Maintenance' : 'Ready to play'}</strong>
       <small>{station.status === 'playing' ? `${liveElapsed || '00:00:00'} · ${liveAmount || formatBirr(0)}` : station.status === 'maintenance' ? station.reason || 'Unavailable for service' : 'No active session'}</small>
     </div>
-    <button className="station-details-trigger" type="button" onClick={openDetails}>View station details <span>→</span></button>
+    <button className="station-details-trigger" type="button" onClick={openDetails} aria-label={`Show details for ${station.name}`}>Station information & live details <span>→</span></button>
     {actionError && <small className="form-error" role="alert">{actionError}</small>}
-    {management ? <div className="station-actions station-management-actions">
+    <div className="station-actions station-management-actions">
       {station.status === 'available' && <><button type="button" className="button button-primary" disabled={busy} onClick={() => start('Open')}>Start</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => changeStatus('reserved')}>Reserve</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => changeStatus('maintenance')}>Maintenance</button></>}
       {station.status === 'reserved' && <><button type="button" className="button button-primary" disabled={busy} onClick={() => start('Fixed')}>Start</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => changeStatus('available')}>Available</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => changeStatus('maintenance')}>Maintenance</button></>}
       {station.status === 'maintenance' && <><button type="button" className="button button-primary" disabled={busy} onClick={() => changeStatus('available')}>Set available</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => changeStatus('reserved')}>Reserve</button></>}
       {station.status === 'playing' && <><button type="button" className="button button-secondary" disabled={busy} onClick={() => onAction('pause', station)}>{isPaused ? 'Resume' : 'Pause'}</button><button type="button" className="button button-danger" disabled={busy} onClick={() => onAction('end', station)}>End</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => onAction('cancel', station)}>Cancel</button></>}
       <button type="button" className="button button-danger" disabled={busy || station.status === 'playing'} onClick={runDelete}>Delete</button>
-    </div> : <div className="station-actions">
-      {station.status === 'available' && <button type="button" className="button button-primary" disabled={busy} onClick={() => start('Open')}>Start</button>}
-      {station.status === 'playing' && <><button type="button" className="button button-secondary" onClick={() => onAction('pause', station)}>{isPaused ? 'Resume' : 'Pause'}</button><button type="button" className="button button-danger" onClick={() => onAction('end', station)}>End</button><button type="button" className="button button-secondary" onClick={() => onAction('cancel', station)}>Cancel</button></>}
-      {station.status === 'reserved' && <button type="button" className="button button-primary" disabled={busy} onClick={() => start('Fixed')}>Start</button>}
-      {station.status === 'maintenance' && <button type="button" className="button button-secondary" onClick={() => setRoute('stations')}>Manage</button>}
-      <button type="button" className="button button-icon" aria-label="Manage stations" onClick={() => setRoute('stations')}>•••</button>
-    </div>}
+    </div>
   </article>
 }
 
 function DashboardContent() {
   const { stations, auditLog, bookingRequests, updateRemoteReservation, setRoute, role } = useApp()
   const [period, setPeriod] = useState('today')
-  const [modal, setModal] = useState(null)
   const [metrics, setMetrics] = useState({ report: null, products: [], loading: true, error: '' })
 
   useEffect(() => {
     let cancelled = false
     const end = new Date()
     const start = new Date(end)
-    if (period === 'week') start.setUTCDate(start.getUTCDate() - 6)
-    if (period === 'month') start.setUTCDate(start.getUTCDate() - 29)
+    start.setUTCHours(0, 0, 0, 0)
+    if (period === 'this-week') start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7))
+    if (period === 'this-month') start.setUTCDate(1)
     const filters = { period: 'custom', from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) }
     const refresh = async () => {
       try {
-        const [report, productResult] = await Promise.all([getDashboardSummary(filters), listProducts()])
+        const [report, productResult] = await Promise.all([getFinancialReports(filters), listProducts()])
         if (!cancelled) setMetrics({ report, products: productResult.products || [], loading: false, error: '' })
       } catch (error) {
         if (!cancelled) setMetrics((current) => ({ ...current, loading: false, error: error.message || 'Unable to load dashboard data from the server.' }))
@@ -253,20 +269,19 @@ function DashboardContent() {
   const gamingRevenue = Number(summary.sessionRevenue || 0)
   const inventoryRevenue = Number(summary.inventorySales || 0)
   const membershipRevenue = Number(summary.membershipRevenue || 0)
-  const activeStations = stations.filter((station) => station.status === 'playing').length
+  const { occupied: activeStations, operational: operationalStations, percent: occupiedPercent } = getStationOccupancy(stations)
   const lowStock = metrics.products.filter((product) => Number(product.stock) <= 5).length
   const buckets = (metrics.report?.buckets || []).slice(-7)
-  const maxRevenue = Math.max(1, ...buckets.map((bucket) => Number(bucket.revenue || 0)))
   const admin = role === 'Owner/Admin'
-  const selectedLabel = period === 'today' ? 'Today' : period === 'week' ? 'Last 7 days' : 'Last 30 days'
+  const selectedLabel = period === 'today' ? 'Today' : period === 'this-week' ? 'This week' : 'This month'
 
-  return <main className="workspace"><div className="page-toolbar"><div><p className="breadcrumb">Dashboard / Overview</p><h2>Station overview</h2></div><div className="toolbar-actions"><select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="today">Today</option><option value="week">This week</option><option value="month">This month</option></select>{admin && <button className="button button-primary" type="button" onClick={() => setRoute('pos')}>+ New sale</button>}</div></div>
+  return <main className="workspace"><div className="page-toolbar"><div><p className="breadcrumb">Dashboard / Overview</p><h2>Station overview</h2></div><div className="toolbar-actions"><span className="occupancy-indicator" aria-label={`${activeStations} occupied of ${operationalStations} operational stations`}>OCCUPIED: {occupiedPercent}% <small>{activeStations}/{operationalStations}</small></span><select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="today">Today</option><option value="this-week">This week</option><option value="this-month">This month</option></select>{admin && <button className="button button-primary" type="button" onClick={() => setRoute('pos')}>+ New sale</button>}</div></div>
     {metrics.error && <div className="data-alert" role="alert">{metrics.error}</div>}
     <section className="stats-grid"><StatCard label={`${selectedLabel} revenue`} value={metrics.loading && !metrics.report ? 'Loading…' : `${formatBirr(revenue)}`} note="Completed sessions, sales, and memberships" /><StatCard label="Active stations" value={`${activeStations}/${stations.length}`} note="Live from station records" tone="cyan" /><StatCard label="Sessions completed" value={metrics.loading && !metrics.report ? 'Loading…' : Number(summary.completedSessions || 0).toLocaleString()} note={`${Number(summary.playedHours || 0).toFixed(2)} playing hours`} tone="purple" /><StatCard label="Low stock items" value={metrics.loading && !metrics.report ? 'Loading…' : lowStock.toLocaleString()} note="Products at 5 units or below" tone="orange" /></section>
     {bookingRequests.some((request) => request.status === 'Pending approval') && <section className="panel incoming-bookings"><div className="panel-heading"><div><span className="eyebrow">Customer portal</span><h3>Incoming remote bookings</h3></div><button className="text-button" type="button" onClick={() => setRoute('remote-booking')}>View all →</button></div>{bookingRequests.filter((request) => request.status === 'Pending approval').map((request) => <div className="incoming-booking-row" key={request.confirmation}><span><strong>{request.customer}</strong><small>{request.phone} · {request.consoleType || request.stationId} · {request.date} at {request.time}</small></span><span><button className="button button-primary" type="button" onClick={() => updateRemoteReservation(request, 'Approved')}>Approve</button><button className="button button-danger" type="button" onClick={() => updateRemoteReservation(request, 'Rejected')}>Reject</button></span></div>)}</section>}
-    <section className="dashboard-grid"><div className="panel stations-panel"><div className="panel-heading"><div><span className="eyebrow">Live floor plan</span><h3>Gaming stations <em>● Live</em></h3></div><button className="text-button" type="button" onClick={() => setRoute('sessions')}>View sessions →</button></div>{stations.length ? <div className="station-grid">{stations.map((station) => <StationCard station={station} key={station.id} onView={(selected) => setModal({ kind: 'details', station: selected })} onAction={(kind, selected) => setModal({ kind, station: selected })} />)}</div> : <div className="empty-state">No stations were returned by the server.</div>}</div>
-      <aside className="panel revenue-panel"><div className="panel-heading"><div><span className="eyebrow">Performance</span><h3>{selectedLabel} revenue</h3></div></div><div className="revenue-total"><strong>{formatBirr(revenue)}</strong><small>Realized revenue from MongoDB</small></div><div className="chart"><div className="chart-bars">{buckets.map((bucket) => <div className="bar-group" key={bucket.date}><i style={{ height: `${Math.max(3, Number(bucket.revenue || 0) / maxRevenue * 100)}%` }} /><small>{new Date(bucket.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></div>)}</div></div>{!buckets.length && <div className="empty-state">No revenue records in this period.</div>}<div className="revenue-legend"><span><i className="dot lime" />Gaming <b>{formatBirr(gamingRevenue)}</b></span><span><i className="dot cyan" />Inventory <b>{formatBirr(inventoryRevenue)}</b></span><span><i className="dot purple" />Memberships <b>{formatBirr(membershipRevenue)}</b></span></div></aside></section>
-    <section className="lower-grid"><div className="panel activity-panel"><div className="panel-heading"><div><span className="eyebrow">Current session</span><h3>Recent activity</h3></div></div>{auditLog.length ? <Activity entries={auditLog.slice(0, 5)} /> : <div className="empty-state">Activity from this staff session will appear here.</div>}</div><div className="panel quick-panel"><span className="eyebrow">Quick actions</span><h3>What do you need?</h3><button type="button" onClick={() => setRoute('reservations')}>▣ Create reservation <span>→</span></button>{admin && <button type="button" onClick={() => setRoute('inventory')}>◈ Manage inventory <span>→</span></button>}<button type="button" onClick={() => setRoute('pos')}>＋ New sale <span>→</span></button>{admin && <button type="button" onClick={() => setRoute('reports')}>▤ Open reports <span>→</span></button>}</div></section><footer className="page-footer">PLAYSTATION GAME ZONE MANAGEMENT SYSTEM <span>MongoDB live data · {selectedLabel}</span></footer>{modal && (modal.kind === 'details' ? <StationDetailsModal station={modal.station} onClose={() => setModal(null)} onAction={(kind, selected) => setModal({ kind, station: selected })} /> : <SessionModal station={modal.station} kind={modal.kind} onClose={() => setModal(null)} />)}</main>
+    <section className="dashboard-grid"><div className="panel stations-panel"><div className="panel-heading"><div><span className="eyebrow">Live floor plan</span><h3>Station status</h3></div><button className="button button-secondary" type="button" onClick={() => setRoute('stations')}>Open floor plan →</button></div><div className="station-overview-grid"><div><strong>{stations.length}</strong><span>Total stations</span></div><div><strong>{activeStations}</strong><span>Playing</span></div><div><strong>{stations.filter((station) => station.status === 'available').length}</strong><span>Available</span></div><div><strong>{stations.filter((station) => station.status === 'maintenance').length}</strong><span>Maintenance</span></div></div><p className="station-overview-note">View and control every station from the live floor plan.</p></div>
+      <aside className="panel revenue-panel"><div className="panel-heading"><div><span className="eyebrow">Performance</span><h3>{selectedLabel} revenue & play time</h3></div></div><div className="revenue-total"><strong>{formatBirr(revenue)}</strong><small>Realized revenue from MongoDB</small></div><AnalyticsChart buckets={buckets} /><div className="revenue-legend"><span><i className="dot lime" />Gaming <b>{formatBirr(gamingRevenue)}</b></span><span><i className="dot cyan" />Inventory <b>{formatBirr(inventoryRevenue)}</b></span><span><i className="dot purple" />Memberships <b>{formatBirr(membershipRevenue)}</b></span></div></aside></section>
+    <section className="lower-grid"><div className="panel activity-panel"><div className="panel-heading"><div><span className="eyebrow">Current session</span><h3>Recent activity</h3></div></div>{auditLog.length ? <Activity entries={auditLog.slice(0, 5)} /> : <div className="empty-state">Activity from this staff session will appear here.</div>}</div><div className="panel quick-panel"><span className="eyebrow">Quick actions</span><h3>What do you need?</h3><button type="button" onClick={() => setRoute('stations')}>▣ Open station floor plan <span>→</span></button><button type="button" onClick={() => setRoute('reservations')}>▣ Create reservation <span>→</span></button>{admin && <button type="button" onClick={() => setRoute('inventory')}>◈ Manage inventory <span>→</span></button>}<button type="button" onClick={() => setRoute('pos')}>＋ New sale <span>→</span></button>{admin && <button type="button" onClick={() => setRoute('reports')}>▤ Open reports <span>→</span></button>}</div></section><footer className="page-footer">PLAYSTATION GAME ZONE MANAGEMENT SYSTEM <span>MongoDB live data · {selectedLabel}</span><small>© 2026 {metrics.report?.shopName || 'Game Zone'}</small></footer></main>
 }
 
 function Activity({ entries }) { return <div className="activity-list">{entries.map((entry) => <div className="activity-row" key={entry.id}><span className={`activity-dot ${entry.tone}`} /><small>{entry.time}</small><span><strong>{entry.user}</strong> {entry.action}</span><b>{entry.value}</b></div>)}</div> }
@@ -375,37 +390,82 @@ function SessionManagement() {
   </ModulePage>
 }
 
+function getReportDateRange(period) {
+  const end = new Date()
+  const start = new Date(end)
+  start.setHours(0, 0, 0, 0)
+  end.setHours(23, 59, 59, 999)
+  const dayOfWeek = start.getDay()
+  const mondayOffset = (dayOfWeek + 6) % 7
+
+  if (period === 'yesterday') {
+    start.setDate(start.getDate() - 1)
+    end.setDate(end.getDate() - 1)
+  } else if (period === 'last-week') {
+    start.setDate(start.getDate() - mondayOffset - 7)
+    end.setTime(start.getTime())
+    end.setDate(end.getDate() + 6)
+  } else if (period === 'this-week') {
+    start.setDate(start.getDate() - mondayOffset)
+  } else if (period === 'last-month') {
+    start.setDate(1)
+    start.setMonth(start.getMonth() - 1)
+    end.setDate(0)
+  } else if (period === 'this-month') {
+    start.setDate(1)
+  }
+
+  const toDateInput = (date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  return { from: toDateInput(start), to: toDateInput(end) }
+}
+
 function Reports({ auditLog }) {
-  const [period, setPeriod] = useState('all')
+  const [period, setPeriod] = useState('this-month')
   const [range, setRange] = useState({ from: '', to: '' })
+  const { from: rangeFrom, to: rangeTo } = range
   const [report, setReport] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
-    if (period === 'custom' && (!range.from || !range.to)) {
-      setReport(null)
-      setLoading(false)
-      return () => { cancelled = true }
-    }
+    if (period === 'custom' && (!rangeFrom || !rangeTo || rangeFrom > rangeTo)) return undefined
     setLoading(true)
     setError('')
+    const dateRange = period === 'custom'
+      ? { from: rangeFrom, to: rangeTo }
+      : getReportDateRange(period)
     getFinancialReports({
-      period,
-      ...(period === 'custom' ? { from: range.from, to: range.to } : {})
+      period: 'custom',
+      from: dateRange.from,
+      to: dateRange.to
     })
       .then((result) => { if (!cancelled) setReport(result) })
       .catch((requestError) => { if (!cancelled) setError(requestError.message || 'Unable to load financial report.') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [period, range.from, range.to])
+  }, [period, rangeFrom, rangeTo])
 
   const values = report?.summary || report || {}
   const revenue = Number(values.revenue ?? values.totalRevenue ?? 0)
   const hours = Number(values.playedHours ?? values.hoursPlayed ?? 0)
   const inventorySales = Number(values.inventorySales ?? values.productRevenue ?? 0)
   const buckets = report?.buckets || []
+  const selectedPeriodLabel = {
+    yesterday: 'Yesterday',
+    today: 'Today',
+    'last-week': 'Last week',
+    'this-week': 'This week',
+    'last-month': 'Last month',
+    'this-month': 'This month',
+    custom: 'Custom range',
+  }[period]
   const csvCell = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`
   const exportCsv = () => {
     const rows = [
@@ -440,28 +500,73 @@ function Reports({ auditLog }) {
           : date.toLocaleDateString()
   }
 
-  return <ModulePage title="Reports & exports" eyebrow="Analyze realized session revenue, play time, and inventory sales for any period.">
+  return <ModulePage title="Reports & analytics" eyebrow="Analyze realized session revenue, play time, and inventory sales for any period.">
     <section className="report-toolbar panel">
-      <label>Reporting period<select value={period} onChange={(event) => { setLoading(true); setError(''); setPeriod(event.target.value) }}><option value="all">All-time overview</option><option value="hourly">Hourly</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="15days">15 days</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="custom">Custom date range</option></select></label>
-      {period === 'custom' && <><label>From<input type="date" value={range.from} onChange={(event) => { setLoading(true); setError(''); setRange({ ...range, from: event.target.value }) }} required /></label><label>To<input type="date" value={range.to} min={range.from || undefined} onChange={(event) => { setLoading(true); setError(''); setRange({ ...range, to: event.target.value }) }} required /></label></>}
-      <button className="button button-secondary" type="button" disabled={loading || (period === 'custom' && (!range.from || !range.to))} onClick={() => { setLoading(true); setError(''); getFinancialReports({ period, ...(period === 'custom' ? range : {}) }).then(setReport).catch((requestError) => setError(requestError.message || 'Unable to load financial report.')).finally(() => setLoading(false)) }}>Refresh</button>
+      <label>Reporting period<select value={period} onChange={(event) => { const nextPeriod = event.target.value; setError(''); if (nextPeriod === 'custom') setReport(null); setLoading(nextPeriod !== 'custom' || Boolean(rangeFrom && rangeTo && rangeFrom <= rangeTo)); setPeriod(nextPeriod) }}><option value="yesterday">Yesterday</option><option value="today">Today</option><option value="last-week">Last week</option><option value="this-week">This week</option><option value="last-month">Last month</option><option value="this-month">This month</option><option value="custom">Custom range</option></select></label>
+      {period === 'custom' && <><label>From<input type="date" value={rangeFrom} max={rangeTo || undefined} onChange={(event) => { const nextRange = { ...range, from: event.target.value }; setRange(nextRange); setReport(null); setError(''); setLoading(Boolean(nextRange.from && nextRange.to && nextRange.from <= nextRange.to)) }} required /></label><label>To<input type="date" value={rangeTo} min={rangeFrom || undefined} onChange={(event) => { const nextRange = { ...range, to: event.target.value }; setRange(nextRange); setReport(null); setError(''); setLoading(Boolean(nextRange.from && nextRange.to && nextRange.from <= nextRange.to)) }} required /></label></>}
       <button className="button button-primary" type="button" onClick={exportCsv} disabled={!report}>Export CSV</button>
     </section>
     {error && <small className="form-error" role="alert">{error}</small>}
     {loading && <p className="report-loading">Loading report…</p>}
-    <div className="stats-grid report-stats"><StatCard label="Realized revenue" value={`${formatBirr(revenue)}`} note={`Selected period · ${period}`} /><StatCard label="Gaming revenue" value={`${formatBirr(Number(values.sessionRevenue || 0))}`} note="Closed sessions" tone="cyan" /><StatCard label="Played hours" value={hours.toFixed(2)} note="Completed session duration" tone="purple" /><StatCard label="Inventory sales" value={`${formatBirr(inventorySales)}`} note="Product sales in range" tone="orange" /></div>
-    <section className="panel report-breakdown"><div className="panel-heading"><div><span className="eyebrow">Period breakdown</span><h3>{report?.periodLabel || period[0].toUpperCase() + period.slice(1)}</h3></div><span className="status-pill available">{report?.count ?? 0} records</span></div><div className="report-breakdown-grid"><span>Completed sessions <strong>{values.sessionCount ?? 0}</strong></span><span>Inventory units sold <strong>{values.inventoryUnitsSold ?? 0}</strong></span><span>Payments received <strong>{formatBirr(Number(values.paymentTotal ?? revenue))}</strong></span></div></section>
+    <div className="stats-grid report-stats"><StatCard label="Realized revenue" value={`${formatBirr(revenue)}`} note={`Selected period · ${selectedPeriodLabel}`} /><StatCard label="Gaming revenue" value={`${formatBirr(Number(values.sessionRevenue || 0))}`} note="Closed sessions" tone="cyan" /><StatCard label="Played hours" value={hours.toFixed(2)} note="Completed session duration" tone="purple" /><StatCard label="Inventory sales" value={`${formatBirr(inventorySales)}`} note="Product sales in range" tone="orange" /></div>
+    <section className="panel report-breakdown"><div className="panel-heading"><div><span className="eyebrow">Period breakdown</span><h3>{selectedPeriodLabel}</h3></div><span className="status-pill available">{report?.count ?? 0} records</span></div><div className="report-breakdown-grid"><span>Completed sessions <strong>{values.sessionCount ?? 0}</strong></span><span>Inventory units sold <strong>{values.inventoryUnitsSold ?? 0}</strong></span><span>Payments received <strong>{formatBirr(Number(values.paymentTotal ?? revenue))}</strong></span></div></section>
+    <section className="panel analytics-chart-panel"><div className="panel-heading"><div><span className="eyebrow">Trends</span><h3>Revenue & playing hours</h3></div><span className="report-date-range">{report?.range?.start ? `${new Date(report.range.start).toLocaleDateString()} – ${new Date(report.range.end).toLocaleDateString()}` : ''}</span></div><AnalyticsChart buckets={buckets} /></section>
     <section className="panel report-table-panel"><div className="panel-heading"><div><span className="eyebrow">Detailed results</span><h3>Revenue & activity by {report?.range?.bucket || 'period'}</h3></div><span className="report-date-range">{report?.range?.start ? `${new Date(report.range.start).toLocaleDateString()} – ${new Date(report.range.end).toLocaleDateString()}` : ''}</span></div><div className="report-table-scroll"><table className="report-table"><thead><tr><th>Date / period</th><th>Total revenue</th><th>Gaming</th><th>Product sales</th><th>Memberships</th><th>Play hours</th><th>Sessions</th><th>Units sold</th></tr></thead><tbody>{buckets.map((bucket) => <tr key={bucket.date}><td>{formatBucketDate(bucket.date)}</td><td>{formatBirr(Number(bucket.revenue || 0))}</td><td>{formatBirr(Number(bucket.sessionRevenue || 0))}</td><td>{formatBirr(Number(bucket.inventorySales || 0))}</td><td>{formatBirr(Number(bucket.membershipRevenue || 0))}</td><td>{Number(bucket.playedHours || 0).toFixed(2)}</td><td>{bucket.completedSessions || 0}</td><td>{bucket.productUnitsSold || 0}</td></tr>)}</tbody></table>{!buckets.length && !loading && <div className="empty-state">{error ? 'Report data is unavailable.' : 'No activity was recorded for this period.'}</div>}</div></section>
     <div className="settings-grid"><div className="panel settings-card"><span className="eyebrow">Audit trail</span><h3>Staff activity</h3><Activity entries={auditLog} /></div><div className="panel settings-card"><span className="eyebrow">Data source</span><h3>Accurate period totals</h3><p>Reports are calculated from persisted, completed sessions and recorded inventory sales, not browser sample values.</p></div></div>
   </ModulePage>
 }
 
+function AnalyticsChart({ buckets }) {
+  const width = 720
+  const height = 240
+  const left = 48
+  const right = 12
+  const top = 16
+  const bottom = 42
+  const chartWidth = width - left - right
+  const chartHeight = height - top - bottom
+  const maxRevenue = Math.max(1, ...buckets.map((bucket) => Number(bucket.revenue || 0)))
+  const maxHours = Math.max(1, ...buckets.map((bucket) => Number(bucket.playedHours || 0)))
+  const x = (index) => left + (buckets.length <= 1 ? chartWidth / 2 : index / (buckets.length - 1) * chartWidth)
+  const y = (value, max) => top + chartHeight - Number(value || 0) / max * chartHeight
+  const revenuePoints = buckets.map((bucket, index) => `${x(index)},${y(bucket.revenue, maxRevenue)}`).join(' ')
+  const hoursPoints = buckets.map((bucket, index) => `${x(index)},${y(bucket.playedHours, maxHours)}`).join(' ')
+  const revenueArea = buckets.length
+    ? `${left},${top + chartHeight} ${revenuePoints} ${x(buckets.length - 1)},${top + chartHeight}`
+    : ''
+  const labelIndexes = [...new Set([0, Math.floor((buckets.length - 1) / 2), buckets.length - 1])]
+
+  return <div className="analytics-chart">
+    <div className="analytics-chart-legend"><span><i className="dot lime" />Revenue ({formatBirr(maxRevenue)} scale)</span><span><i className="dot cyan" />Playing hours ({maxHours.toFixed(1)} hrs scale)</span></div>
+    {buckets.length ? <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Revenue and playing hours by reporting period">
+      <defs><linearGradient id="analytics-revenue-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="var(--lime)" stopOpacity=".24" /><stop offset="100%" stopColor="var(--lime)" stopOpacity="0" /></linearGradient></defs>
+      {[0, 1, 2, 3].map((line) => {
+        const lineY = top + line * chartHeight / 3
+        return <line className="analytics-grid-line" key={line} x1={left} x2={width - right} y1={lineY} y2={lineY} />
+      })}
+      <polygon className="analytics-revenue-area" points={revenueArea} />
+      <polyline className="analytics-revenue-line" points={revenuePoints} />
+      <polyline className="analytics-hours-line" points={hoursPoints} />
+      {buckets.map((bucket, index) => <g key={bucket.date}>
+        <circle className="analytics-revenue-point" cx={x(index)} cy={y(bucket.revenue, maxRevenue)} r="3"><title>{new Date(bucket.date).toLocaleDateString()}: {formatBirr(Number(bucket.revenue || 0))}</title></circle>
+        <circle className="analytics-hours-point" cx={x(index)} cy={y(bucket.playedHours, maxHours)} r="3"><title>{new Date(bucket.date).toLocaleDateString()}: {Number(bucket.playedHours || 0).toFixed(2)} playing hours</title></circle>
+      </g>)}
+      {labelIndexes.map((index) => <text className="analytics-axis-label" key={index} x={x(index)} y={height - 12} textAnchor={index === 0 ? 'start' : index === buckets.length - 1 ? 'end' : 'middle'}>{new Date(buckets[index].date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</text>)}
+    </svg> : <div className="empty-state">No trend data is available for this period.</div>}
+  </div>
+}
+
 function StationsManagement() {
   const { stations, refreshStations } = useApp()
+  const occupancy = getStationOccupancy(stations)
   const [form, setForm] = useState({ name: '', type: 'PlayStation 5' })
   const [error, setError] = useState('')
   const [modal, setModal] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const selectedStation = modal?.station
+    ? stations.find((station) => station.id === modal.station.id) || modal.station
+    : null
   useEffect(() => {
     refreshStations()
       .catch((requestError) => setError(requestError.message || 'Unable to load stations.'))
@@ -469,12 +574,24 @@ function StationsManagement() {
   }, [refreshStations])
   const add = async (event) => {
     event.preventDefault()
+    if (saving) return
+    setSaving(true)
+    setError('')
     try {
       await createStation(form)
-      await refreshStations()
       setForm({ name: '', type: 'PlayStation 5' })
-      setError('')
-    } catch (requestError) { setError(requestError.message || 'Unable to add station.') }
+      setModal(null)
+    } catch (requestError) {
+      setError(requestError.message || 'Unable to add station.')
+      setSaving(false)
+      return
+    }
+    try {
+      await refreshStations()
+    } catch (requestError) {
+      setError(`Station created, but the floor plan could not refresh: ${requestError.message || 'Unable to load stations.'}`)
+    }
+    finally { setSaving(false) }
   }
   const changeStatus = async (station, status) => {
     let reason = ''
@@ -483,24 +600,27 @@ function StationsManagement() {
       if (enteredReason === null) return
       reason = enteredReason.trim()
     }
+    await updateStationStatus(station.id, status, reason)
     try {
-      await updateStationStatus(station.id, status, reason)
       await refreshStations()
-      setError('')
-    } catch (requestError) { throw requestError }
+    } catch (requestError) {
+      throw new Error(`Station status updated, but the floor plan could not refresh: ${requestError.message || 'Unable to load stations.'}`)
+    }
+    setError('')
   }
   const remove = async (station) => {
     if (!window.confirm(`Delete station ${station.name}?`)) return
+    await deleteStation(station.id)
     try {
-      await deleteStation(station.id)
       await refreshStations()
-    } catch (requestError) { throw requestError }
+    } catch (requestError) {
+      throw new Error(`Station deleted, but the floor plan could not refresh: ${requestError.message || 'Unable to load stations.'}`)
+    }
   }
-  return <><ModulePage title="Station management" eyebrow="Add and operate your floor plan with live session state, timers, and console cards.">
-    <form className="panel station-create-form" onSubmit={add}><label>Station name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="e.g. PS5-11" required /></label><label>Console type<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}><option>PlayStation 5</option><option>PlayStation 4</option></select></label><button className="button button-primary" type="submit">Add station</button></form>
-    {error && <small className="form-error" role="alert">{error}</small>}
-    {loading ? <div className="panel empty-state">Loading stations…</div> : stations.length ? <div className="station-grid station-management-grid">{stations.map((station) => <StationCard station={station} key={station.id} management onView={(selected) => setModal({ kind: 'details', station: selected })} onAction={(kind, selected) => setModal({ kind, station: selected })} onStatusChange={changeStatus} onDelete={remove} />)}</div> : <div className="panel empty-state">No stations are configured yet. Add a station above to build your floor plan.</div>}
-  </ModulePage>{modal && (modal.kind === 'details' ? <StationDetailsModal station={modal.station} onClose={() => setModal(null)} onAction={(kind, selected) => setModal({ kind, station: selected })} onStatusChange={changeStatus} /> : <SessionModal station={modal.station} kind={modal.kind} onClose={() => setModal(null)} />)}</>
+  return <><main className="workspace"><div className="page-toolbar"><div><p className="breadcrumb">Operations / Stations</p><h2>Station management</h2><p className="page-description">One live floor plan to monitor and control all gaming stations.</p></div><div className="toolbar-actions"><span className="occupancy-indicator" aria-label={`${occupancy.occupied} occupied of ${occupancy.operational} operational stations`}>OCCUPIED: {occupancy.percent}% <small>{occupancy.occupied}/{occupancy.operational}</small></span><button className="button button-primary" type="button" onClick={() => { setError(''); setModal({ kind: 'add' }) }}>+ Add station</button></div></div>
+    {error && !modal && <small className="form-error" role="alert">{error}</small>}
+    {loading ? <div className="panel empty-state">Loading stations…</div> : stations.length ? <div className="station-grid station-management-grid">{stations.map((station) => <StationCard station={station} key={station.id} onView={(selected) => setModal({ kind: 'details', station: selected })} onAction={(kind, selected) => setModal({ kind, station: selected })} onStatusChange={changeStatus} onDelete={remove} />)}</div> : <div className="panel empty-state">No stations configured yet. Select “Add station” to create the floor plan.</div>}
+  </main>{modal?.kind === 'add' && <Modal title="Add station" eyebrow="Create a console in your floor plan" onClose={() => { if (!saving) { setModal(null); setError('') } }}><form className="modal-form" onSubmit={add}><label>Station name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="e.g. PS5-11" maxLength="80" required disabled={saving} /></label><label>Console type<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })} disabled={saving}><option>PlayStation 5</option><option>PlayStation 4</option></select></label>{error && <small className="form-error" role="alert">{error}</small>}<div className="modal-actions"><button className="button button-secondary" type="button" onClick={() => { setModal(null); setError('') }} disabled={saving}>Cancel</button><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Adding…' : 'Add station'}</button></div></form></Modal>}{modal?.kind === 'details' && selectedStation && <StationDetailsModal station={selectedStation} onClose={() => setModal(null)} onAction={(kind, selected) => setModal({ kind, station: selected })} onStatusChange={changeStatus} />}{modal && !['add', 'details'].includes(modal.kind) && <SessionModal station={selectedStation || modal.station} kind={modal.kind} onClose={() => setModal(null)} />}</>
 }
 
 function Memberships() {
@@ -542,16 +662,28 @@ function Memberships() {
 }
 
 function CheckoutModal({ onClose, gamingCharge = 0 }) {
-  const { cart, removeFromCart, checkout, pricing, shop } = useApp()
+  const { cart, addToCart, removeFromCart, checkout, pricing, shop } = useApp()
   const [payment, setPayment] = useState({ Cash: 0, 'Mobile Money': 0, Bank: 0, Card: 0 })
   const [discount, setDiscount] = useState({ type: 'percent', value: 0, reason: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const productTotal = cart.reduce((sum, product) => sum + product.price, 0)
+  const groupedCart = groupCartItems(cart)
+  const productTotal = cart.reduce((sum, product) => sum + Number(product.price || 0), 0)
   const subtotal = productTotal + gamingCharge
   const discountValue = discount.type === 'percent' ? subtotal * (Number(discount.value) / 100) : Number(discount.value)
   const total = Math.max(0, subtotal - discountValue)
   const paid = Object.values(payment).reduce((sum, value) => sum + Number(value), 0)
+  const increaseQuantity = (item) => {
+    const id = String(item._id || item.id || item.name)
+    const quantity = cart.filter((line) => String(line._id || line.id || line.name) === id).length
+    const stock = Number(item.stock)
+    if (Number.isFinite(stock) && quantity >= stock) {
+      setError(`Only ${stock} ${item.name} unit${stock === 1 ? '' : 's'} remain in stock.`)
+      return
+    }
+    setError('')
+    addToCart(item)
+  }
   const submit = async (event) => {
     event.preventDefault()
     if (discountValue > 0 && !discount.reason.trim()) return
@@ -581,7 +713,7 @@ function CheckoutModal({ onClose, gamingCharge = 0 }) {
         window.dispatchEvent(new Event('inventory-updated'))
       }
       checkout(total)
-      printReceipt({ shop, items: cart, gamingCharge, total })
+      printReceipt({ shop, items: groupedCart, gamingCharge, total })
       onClose()
     } catch (requestError) {
       setError(requestError.message || 'Unable to record payment.')
@@ -589,17 +721,17 @@ function CheckoutModal({ onClose, gamingCharge = 0 }) {
       setSubmitting(false)
     }
   }
-  return <Modal title="Final bill & checkout" eyebrow="Gaming + products · audit ready" onClose={onClose}><form className="modal-form checkout-form" onSubmit={submit}><div className="bill-lines"><div><span>Gaming charges</span><b>{formatBirr(gamingCharge)}</b></div>{cart.map((item, index) => <div key={`${item.id}-${index}`}><span>{item.icon} {item.name}</span><button type="button" className="text-button" onClick={() => removeFromCart(index)}>Remove</button><b>{formatBirr(item.price)}</b></div>)}</div><div className="bill-total"><span>Subtotal</span><strong>{formatBirr(subtotal)}</strong></div><div className="discount-box"><label>Discount type<select value={discount.type} onChange={(event) => setDiscount({ ...discount, type: event.target.value })}><option value="percent">Percentage (%)</option><option value="fixed">Fixed amount</option></select></label><label>Amount<input min="0" max={discount.type === 'percent' ? Number(pricing.discountLimit) : subtotal} type="number" value={discount.value} onChange={(event) => setDiscount({ ...discount, value: event.target.value })} /></label><label className="wide">Reason required for staff discount<input value={discount.reason} onChange={(event) => setDiscount({ ...discount, reason: event.target.value })} placeholder={`Admin limit: ${pricing.discountLimit}%`} /></label></div><div className="payment-grid"><strong>Mixed payments</strong>{Object.keys(payment).map((method) => <label key={method}>{method}<input type="number" min="0" value={payment[method]} onChange={(event) => setPayment({ ...payment, [method]: event.target.value })} /></label>)}<small>Paid {formatBirr(paid)} of {formatBirr(total)} {Math.abs(paid - total) < .01 ? '✓' : '· enter exact total'}</small></div>{error && <small className="form-error" role="alert">{error}</small>}<div className="modal-actions"><button className="button button-secondary" type="button" onClick={onClose} disabled={submitting}>Back</button><button className="button button-primary" type="submit" disabled={submitting || Math.abs(paid - total) > .01 || (discountValue > 0 && !discount.reason.trim())}>{submitting ? 'Recording…' : 'Complete payment'}</button></div></form></Modal>
+  return <Modal title="Final bill & checkout" eyebrow="Gaming + products · audit ready" onClose={onClose}><form className="modal-form checkout-form" onSubmit={submit}><div className="bill-lines"><div><span>Gaming charges</span><b>{formatBirr(gamingCharge)}</b></div>{groupedCart.map((item) => <div className="bill-line-product" key={item.key}><span>{item.icon} {item.name} <small>{formatBirr(Number(item.price))} each</small></span><div className="quantity-control"><button type="button" aria-label={`Return one ${item.name}`} title="Remove one from this bill" disabled={submitting} onClick={() => removeFromCart(item.indexes[item.indexes.length - 1])}>−</button><b>{item.quantity}</b><button type="button" aria-label={`Add one ${item.name}`} title="Add one to this bill" disabled={submitting} onClick={() => increaseQuantity(item)}>+</button></div><strong>{formatBirr(Number(item.price) * item.quantity)}</strong></div>)}</div><div className="bill-total"><span>Subtotal</span><strong>{formatBirr(subtotal)}</strong></div><div className="discount-box"><label>Discount type<select value={discount.type} onChange={(event) => setDiscount({ ...discount, type: event.target.value })}><option value="percent">Percentage (%)</option><option value="fixed">Fixed amount</option></select></label><label>Amount<input min="0" max={discount.type === 'percent' ? Number(pricing.discountLimit) : subtotal} type="number" value={discount.value} onChange={(event) => setDiscount({ ...discount, value: event.target.value })} /></label><label className="wide">Reason required for staff discount<input value={discount.reason} onChange={(event) => setDiscount({ ...discount, reason: event.target.value })} placeholder={`Admin limit: ${pricing.discountLimit}%`} /></label></div><div className="payment-grid"><strong>Mixed payments</strong>{Object.keys(payment).map((method) => <label key={method}>{method}<input type="number" min="0" value={payment[method]} onChange={(event) => setPayment({ ...payment, [method]: event.target.value })} /></label>)}<small>Paid {formatBirr(paid)} of {formatBirr(total)} {Math.abs(paid - total) < .01 ? '✓' : '· enter exact total'}</small></div>{error && <small className="form-error" role="alert">{error}</small>}<div className="modal-actions"><button className="button button-secondary" type="button" onClick={onClose} disabled={submitting}>Back</button><button className="button button-primary" type="submit" disabled={submitting || Math.abs(paid - total) > .01 || (discountValue > 0 && !discount.reason.trim())}>{submitting ? 'Recording…' : 'Complete payment'}</button></div></form></Modal>
 }
 
 function ModuleContent({ route }) {
-  const { stations, products, expenses, reservations, credits, cart, hardware, remoteReservations, addExpense, addToCart, addReservation, addCredit, repayCredit, auditLog, role, updateRemoteReservation, reportHardwareIssue } = useApp()
+  const { stations, products, expenses, reservations, credits, cart, hardware, remoteReservations, addExpense, addToCart, removeFromCart, addReservation, addCredit, repayCredit, auditLog, role, updateRemoteReservation, reportHardwareIssue } = useApp()
   const [modal, setModal] = useState(null)
   if (route === 'sessions') return <SessionManagement />
   if (route === 'stations') return role === 'Owner/Admin' ? <StationsManagement /> : <ModulePage title="Station management" eyebrow="Restricted area"><div className="panel settings-card"><h3>Admin access required</h3><p>Only administrators can add or remove stations and change their operational status.</p></div></ModulePage>
   if (route === 'memberships') return <Memberships />
   if (route === 'inventory') return role === 'Owner/Admin' ? <Inventory initialProducts={products} /> : <ModulePage title="Inventory" eyebrow="Restricted area"><div className="panel settings-card"><h3>Admin access required</h3><p>Cashiers can sell stocked items in POS. Product and stock management is reserved for administrators.</p></div></ModulePage>
-  if (route === 'pos') return <><POS products={products} addToCart={addToCart} cart={cart} setModal={setModal} />{modal && <CheckoutModal onClose={() => setModal(null)} gamingCharge={0} />}</>
+  if (route === 'pos') return <><POS products={products} addToCart={addToCart} removeFromCart={removeFromCart} cart={cart} setModal={setModal} />{modal && <CheckoutModal onClose={() => setModal(null)} gamingCharge={0} />}</>
   if (route === 'reservations') return <Reservations stations={stations} reservations={reservations} addReservation={addReservation} credits={credits} addCredit={addCredit} repayCredit={repayCredit} />
   if (route === 'remote-booking') return <RemoteBooking bookings={remoteReservations} updateRemoteReservation={updateRemoteReservation} />
   if (route === 'hardware') return <HardwareHealth hardware={hardware} reportHardwareIssue={reportHardwareIssue} />
@@ -667,7 +799,7 @@ function Settings() {
   return <ModulePage title="Settings & pricing" eyebrow="Owner/Admin controls for your shop identity, receipt details, rates, users, and shift close."><form className="panel shop-settings-form" onSubmit={submitShop}><div className="panel-heading"><div><span className="eyebrow">Business profile</span><h3>Shop settings</h3></div><span className="status-pill available">Admin only</span></div><div className="form-grid"><label>Shop name<input value={shopValues.name} onChange={(event) => setShopValues({ ...shopValues, name: event.target.value })} required /></label><label>Phone<input value={shopValues.phone} onChange={(event) => setShopValues({ ...shopValues, phone: event.target.value })} /></label><label className="wide">Receipt address<textarea value={shopValues.address} onChange={(event) => setShopValues({ ...shopValues, address: event.target.value })} /></label><label>PS4 hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.ps4} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, ps4: event.target.value } })} /></label><label>PS5 hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.ps5} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, ps5: event.target.value } })} /></label><label>VIP hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.vip} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, vip: event.target.value } })} /></label><label>Other hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.other} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, other: event.target.value } })} /></label></div>{shopError && <small className="form-error">{shopError}</small>}{shopSaved && <small className="form-success" role="status">Shop settings saved successfully.</small>}<button className="button button-primary" type="submit">Save business settings</button></form><div className="settings-grid"><form className="panel settings-card" onSubmit={(event) => { event.preventDefault(); updatePricing(values) }}><span className="eyebrow">Admin only</span><h3>Pricing control</h3><div className="pricing-form"><label>PS4 / minute<input type="number" step="0.01" min="0" value={values.ps4} onChange={(event) => setValues({ ...values, ps4: event.target.value })} /></label><label>PS5 / minute<input type="number" step="0.01" min="0" value={values.ps5} onChange={(event) => setValues({ ...values, ps5: event.target.value })} /></label><label>Other / minute<input type="number" step="0.01" min="0" value={values.other} onChange={(event) => setValues({ ...values, other: event.target.value })} /></label><label>Staff discount max %<input type="number" min="0" max="100" value={values.discountLimit} onChange={(event) => setValues({ ...values, discountLimit: event.target.value })} /></label></div><button className="button button-primary" type="submit">Save pricing</button></form><form className="panel settings-card" onSubmit={(event) => { event.preventDefault(); if (cash !== '') closeShift(cash) }}><span className="eyebrow">Cashier control</span><h3>Close current shift</h3><p>Expected cash: <b>{formatBirr(shift.expectedCash)}</b>{shift.closedAt && ` · Closed at ${shift.closedAt}`}</p><label>Actual physical cash<input type="number" min="0" step="0.01" value={cash} onChange={(event) => setCash(event.target.value)} required /></label><button className="button button-secondary" type="submit">Close shift</button></form></div><div className="user-management panel"><div className="panel-heading"><div><span className="eyebrow">Admin only</span><h3>User management</h3></div><span className="status-pill available">{users.length} users</span></div><form className="user-form" onSubmit={submitUser}><input placeholder="Full name" value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} required /><input placeholder="Username" value={userForm.username} onChange={(event) => setUserForm({ ...userForm, username: event.target.value.toLowerCase().replace(/\s/g, '') })} required /><input inputMode="tel" pattern="[0-9]{7,18}" placeholder="Phone (numbers only)" value={userForm.phone} onChange={(event) => setUserForm({ ...userForm, phone: event.target.value.replace(/\D/g, '') })} required /><select value={userForm.role} onChange={(event) => setUserForm({ ...userForm, role: event.target.value })}><option>Cashier</option><option>Admin</option></select><input inputMode="numeric" pattern="\d{6}" maxLength="6" placeholder="6-digit PIN" value={userForm.pin} onChange={(event) => setUserForm({ ...userForm, pin: event.target.value.replace(/\D/g, '') })} required /><button className="button button-primary" type="submit">Add user</button>{userError && <small className="form-error">{userError}</small>}</form><div className="user-list">{users.map((managedUser) => <div className="user-row" key={managedUser.id}><span className="avatar">{managedUser.name.split(' ').map((name) => name[0]).join('')}</span><span><strong>{managedUser.name}</strong><small>@{managedUser.username} · {managedUser.phone}</small></span>  <span className="status-pill">{managedUser.role}</span>{managedUser.name !== currentUser && <><button className="button button-secondary edit-user-button" type="button" onClick={() => editUser(managedUser)}>Edit</button><button className="button button-danger delete-user-button" type="button" onClick={() => { if (window.confirm(`Delete ${managedUser.name}?`)) deleteUser(managedUser.username) }}>  Delete</button></>}</div>)}</div></div></ModulePage>
 }
 
-function POS({ products: initialProducts, addToCart, cart, setModal }) {
+function POS({ products: initialProducts, addToCart, removeFromCart, cart, setModal }) {
   const [products, setProducts] = useState(initialProducts)
   const [error, setError] = useState('')
   useEffect(() => {
@@ -682,7 +814,23 @@ function POS({ products: initialProducts, addToCart, cart, setModal }) {
       window.removeEventListener('inventory-updated', reload)
     }
   }, [])
-  return <ModulePage title="POS & Sales" eyebrow="Combine gaming charges and product sales into one final bill."><div className="pos-layout"><div className="product-picker panel"><div className="panel-heading"><div><span className="eyebrow">Quick sale</span><h3>Products</h3></div></div>{error && <small className="form-error" role="alert">{error}</small>}<div className="product-grid">{products.map((product) => <button type="button" key={product._id || product.id} disabled={Number(product.stock) === 0} onClick={() => addToCart({ ...product, price: Number(product.price) })}><span className="product-visual"><img src={product.imageUrl || getProductImage(product.name, product.category)} alt="" onError={(event) => { event.currentTarget.hidden = true }} /><i>{product.icon || '◈'}</i></span><strong>{product.name}</strong><small>{formatBirr(Number(product.price))} · {product.stock} left</small></button>)}</div></div><div className="checkout panel"><span className="eyebrow">Current bill</span><h3>{cart.length ? `${cart.length} item(s) selected` : 'Walk-in sale'}</h3><div className="empty-state">{cart.length ? cart.map((item, index) => <div className="cart-line" key={`${item._id || item.id}-${index}`}>{item.name}<b>{formatBirr(Number(item.price))}</b></div>) : 'Select products to add them to this bill.'}</div><div className="checkout-total"><span>Total</span><strong>{formatBirr(cart.reduce((sum, item) => sum + Number(item.price), 0))}</strong></div><button className="button button-primary full-button" type="button" disabled={!cart.length} onClick={() => setModal('checkout')}>Review final bill</button></div></div></ModulePage>
+  const groupedCart = groupCartItems(cart)
+  const increaseQuantity = (item) => {
+    const id = String(item._id || item.id || item.name)
+    const quantity = cart.filter((line) => String(line._id || line.id || line.name) === id).length
+    const stock = Number(item.stock)
+    if (Number.isFinite(stock) && quantity >= stock) {
+      setError(`Only ${stock} ${item.name} unit${stock === 1 ? '' : 's'} remain in stock.`)
+      return
+    }
+    setError('')
+    addToCart(item)
+  }
+  const decreaseQuantity = (item) => {
+    setError('')
+    removeFromCart(item.indexes[item.indexes.length - 1])
+  }
+  return <ModulePage title="POS & Sales" eyebrow="Combine gaming charges and product sales into one final bill."><div className="pos-layout"><div className="product-picker panel"><div className="panel-heading"><div><span className="eyebrow">Quick sale</span><h3>Products</h3></div></div>{error && <small className="form-error" role="alert">{error}</small>}<div className="product-grid">{products.map((product) => <button type="button" key={product._id || product.id} disabled={Number(product.stock) === 0} onClick={() => increaseQuantity({ ...product, price: Number(product.price) })}><span className="product-visual"><img src={product.imageUrl || getProductImage(product.name, product.category)} alt="" onError={(event) => { event.currentTarget.hidden = true }} /><i>{product.icon || '◈'}</i></span><strong>{product.name}</strong><small>{formatBirr(Number(product.price))} · {product.stock} left</small></button>)}</div></div><div className="checkout panel"><span className="eyebrow">Current bill</span><h3>{cart.length ? `${cart.length} item(s) selected` : 'Walk-in sale'}</h3><div className="cart-lines">{groupedCart.length ? groupedCart.map((item) => <div className="cart-line" key={item.key}><span>{item.name}<small>{formatBirr(Number(item.price))} each</small></span><div className="quantity-control"><button type="button" aria-label={`Return one ${item.name}`} title="Remove one from this bill" onClick={() => decreaseQuantity(item)}>−</button><b>{item.quantity}</b><button type="button" aria-label={`Add one ${item.name}`} title="Add one to this bill" onClick={() => increaseQuantity(item)}>+</button></div><strong>{formatBirr(Number(item.price) * item.quantity)}</strong></div>) : <div className="empty-state">Select products to add them to this bill.</div>}</div><div className="checkout-total"><span>Total</span><strong>{formatBirr(cart.reduce((sum, item) => sum + Number(item.price), 0))}</strong></div><button className="button button-primary full-button" type="button" disabled={!cart.length} onClick={() => setModal('checkout')}>Review final bill</button></div></div></ModulePage>
 }
 
 function Reservations({ stations, reservations, addReservation, credits, addCredit, repayCredit }) {
@@ -729,13 +877,13 @@ function Dashboard() {
     <aside className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
       <div className="sidebar-heading">
         <a className="sidebar-brand" href="#dashboard">
-          <span className="brand-mark">P</span>
+          <BrandMark />
           {menuOpen && <span>{shop.name || 'GAME ZONE'}<br /><b>MANAGEMENT</b></span>}
         </a>
         <button className="sidebar-menu-toggle" type="button" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? '×' : '☰'}</button>
       </div>
       {menuOpen && <nav aria-label="Main navigation">{visibleNav.map(([id, icon, label]) => <a className={route === id ? 'active' : ''} href={`#${id}`} key={id} onClick={() => setMenuOpen(false)}>{icon}<span>{label}</span></a>)}</nav>}
-      {menuOpen && <div className="sidebar-footer"><div className="network-status"><i /> Local network <b>Online</b></div><small>© 2024 {shop.name || 'Game Zone'}<br />v1.0.0</small></div>}
+      {menuOpen && <div className="sidebar-footer"><div className="network-status"><i /> Local network <b>Online</b></div><small>© 2026 {shop.name || 'Game Zone'}<br />v1.0.0</small></div>}
     </aside>
     {route === 'dashboard' ? <DashboardContent /> : <ModuleContent route={route} />}
   </>
