@@ -27,7 +27,7 @@ function normalizeBooking(booking) {
 }
 
 const initialState = {
-  route: window.location.hash.replace('#', '') || 'booking',
+  route: window.location.hash.replace('#', '') || 'login',
   authenticated: false,
   role: null,
   loginAttempts: 0,

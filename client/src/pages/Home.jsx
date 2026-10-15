@@ -564,11 +564,9 @@ function AnalyticsChart({ buckets }) {
 function StationsManagement() {
   const { stations, refreshStations } = useApp()
   const occupancy = getStationOccupancy(stations)
-  const [form, setForm] = useState({ name: '', type: 'PlayStation 5' })
   const [error, setError] = useState('')
   const [modal, setModal] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const selectedStation = modal?.station
     ? stations.find((station) => station.id === modal.station.id) || modal.station
     : null
@@ -577,27 +575,6 @@ function StationsManagement() {
       .catch((requestError) => setError(requestError.message || 'Unable to load stations.'))
       .finally(() => setLoading(false))
   }, [refreshStations])
-  const add = async (event) => {
-    event.preventDefault()
-    if (saving) return
-    setSaving(true)
-    setError('')
-    try {
-      await createStation(form)
-      setForm({ name: '', type: 'PlayStation 5' })
-      setModal(null)
-    } catch (requestError) {
-      setError(requestError.message || 'Unable to add station.')
-      setSaving(false)
-      return
-    }
-    try {
-      await refreshStations()
-    } catch (requestError) {
-      setError(`Station created, but the floor plan could not refresh: ${requestError.message || 'Unable to load stations.'}`)
-    }
-    finally { setSaving(false) }
-  }
   const changeStatus = async (station, status) => {
     let reason = ''
     if (status === 'maintenance') {
@@ -622,10 +599,10 @@ function StationsManagement() {
       throw new Error(`Station deleted, but the floor plan could not refresh: ${requestError.message || 'Unable to load stations.'}`)
     }
   }
-  return <><main className="workspace"><div className="page-toolbar"><div><p className="breadcrumb">Operations / Stations</p><h2>Station management</h2><p className="page-description">One live floor plan to monitor and control all gaming stations.</p></div><div className="toolbar-actions"><span className="occupancy-indicator" aria-label={`${occupancy.occupied} occupied of ${occupancy.operational} operational stations`}>OCCUPIED: {occupancy.percent}% <small>{occupancy.occupied}/{occupancy.operational}</small></span><button className="button button-primary" type="button" onClick={() => { setError(''); setModal({ kind: 'add' }) }}>+ Add station</button></div></div>
+  return <><main className="workspace"><div className="page-toolbar"><div><p className="breadcrumb">Operations / Stations</p><h2>Station management</h2><p className="page-description">One live floor plan to monitor and control all gaming stations.</p></div><div className="toolbar-actions"><span className="occupancy-indicator" aria-label={`${occupancy.occupied} occupied of ${occupancy.operational} operational stations`}>OCCUPIED: {occupancy.percent}% <small>{occupancy.occupied}/{occupancy.operational}</small></span></div></div>
     {error && !modal && <small className="form-error" role="alert">{error}</small>}
-    {loading ? <div className="panel empty-state">Loading stations…</div> : stations.length ? <div className="station-grid station-management-grid">{stations.map((station) => <StationCard station={station} key={station.id} onView={(selected) => setModal({ kind: 'details', station: selected })} onAction={(kind, selected) => setModal({ kind, station: selected })} onStatusChange={changeStatus} onDelete={remove} />)}</div> : <div className="panel empty-state">No stations configured yet. Select “Add station” to create the floor plan.</div>}
-  </main>{modal?.kind === 'add' && <Modal title="Add station" eyebrow="Create a console in your floor plan" onClose={() => { if (!saving) { setModal(null); setError('') } }}><form className="modal-form" onSubmit={add}><label>Station name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="e.g. PS5-11" maxLength="80" required disabled={saving} /></label><label>Console type<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })} disabled={saving}><option>PlayStation 5</option><option>PlayStation 4</option></select></label>{error && <small className="form-error" role="alert">{error}</small>}<div className="modal-actions"><button className="button button-secondary" type="button" onClick={() => { setModal(null); setError('') }} disabled={saving}>Cancel</button><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Adding…' : 'Add station'}</button></div></form></Modal>}{modal?.kind === 'details' && selectedStation && <StationDetailsModal station={selectedStation} onClose={() => setModal(null)} onAction={(kind, selected) => setModal({ kind, station: selected })} onStatusChange={changeStatus} />}{modal && !['add', 'details'].includes(modal.kind) && <SessionModal station={selectedStation || modal.station} kind={modal.kind} onClose={() => setModal(null)} />}</>
+    {loading ? <div className="panel empty-state">Loading stations…</div> : stations.length ? <div className="station-grid station-management-grid">{stations.map((station) => <StationCard station={station} key={station.id} onView={(selected) => setModal({ kind: 'details', station: selected })} onAction={(kind, selected) => setModal({ kind, station: selected })} onStatusChange={changeStatus} onDelete={remove} />)}</div> : <div className="panel empty-state">No stations configured yet. Add stations from Settings.</div>}
+  </main>{modal?.kind === 'details' && selectedStation && <StationDetailsModal station={selectedStation} onClose={() => setModal(null)} onAction={(kind, selected) => setModal({ kind, station: selected })} onStatusChange={changeStatus} />}{modal && modal.kind !== 'details' && <SessionModal station={selectedStation || modal.station} kind={modal.kind} onClose={() => setModal(null)} />}</>
 }
 
 function Memberships() {
@@ -746,6 +723,57 @@ function ModuleContent({ route }) {
   return <ModulePage title="Reports & exports" eyebrow="Revenue, expenses, staff performance, and audit records." />
 }
 
+function StationSettings() {
+  const { refreshStations } = useApp()
+  const [form, setForm] = useState({ name: '', type: 'PlayStation 5' })
+  const [error, setError] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const add = async (event) => {
+    event.preventDefault()
+    if (saving) return
+    setSaving(true)
+    setError('')
+    try {
+      await createStation(form)
+    } catch (requestError) {
+      setError(requestError.message || 'Unable to add station.')
+      setSaving(false)
+      return
+    }
+    setForm({ name: '', type: 'PlayStation 5' })
+    setModalOpen(false)
+    try {
+      await refreshStations()
+    } catch (requestError) {
+      setError(`Station created, but the floor plan could not refresh: ${requestError.message || 'Unable to load stations.'}`)
+    }
+    setSaving(false)
+  }
+
+  return <>
+    <section className="panel settings-card">
+      <span className="eyebrow">Admin only</span>
+      <h3>Station management</h3>
+      <p>Add a console to your gaming floor.</p>
+      {error && <small className="form-error" role="alert">{error}</small>}
+      <button className="button button-primary" type="button" onClick={() => { setError(''); setModalOpen(true) }}>+ Add station</button>
+    </section>
+    {modalOpen && <Modal title="Add station" eyebrow="Create a console in your floor plan" onClose={() => { if (!saving) { setModalOpen(false); setError('') } }}>
+      <form className="modal-form" onSubmit={add}>
+        <label>Station name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="e.g. PS5-11" maxLength="80" required disabled={saving} /></label>
+        <label>Console type<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })} disabled={saving}><option>PlayStation 5</option><option>PlayStation 4</option></select></label>
+        {error && <small className="form-error" role="alert">{error}</small>}
+        <div className="modal-actions">
+          <button className="button button-secondary" type="button" onClick={() => { setModalOpen(false); setError('') }} disabled={saving}>Cancel</button>
+          <button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Adding…' : 'Add station'}</button>
+        </div>
+      </form>
+    </Modal>}
+  </>
+}
+
 function Settings() {
   const { pricing, updatePricing, shift, closeShift, users, addUser, updateUser, deleteUser, user: currentUser, shop, saveShopSettings } = useApp()
   const [values, setValues] = useState(pricing)
@@ -801,7 +829,7 @@ function Settings() {
     updateUser({ ...managedUser, name, username, phone, role, pin, password: pin })
     setUserError('')
   }
-  return <ModulePage title="Settings & pricing" eyebrow="Owner/Admin controls for your shop identity, receipt details, rates, users, and shift close."><form className="panel shop-settings-form" onSubmit={submitShop}><div className="panel-heading"><div><span className="eyebrow">Business profile</span><h3>Shop settings</h3></div><span className="status-pill available">Admin only</span></div><div className="form-grid"><label>Shop name<input value={shopValues.name} onChange={(event) => setShopValues({ ...shopValues, name: event.target.value })} required /></label><label>Phone<input value={shopValues.phone} onChange={(event) => setShopValues({ ...shopValues, phone: event.target.value })} /></label><label className="wide">Receipt address<textarea value={shopValues.address} onChange={(event) => setShopValues({ ...shopValues, address: event.target.value })} /></label><label>PS4 hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.ps4} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, ps4: event.target.value } })} /></label><label>PS5 hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.ps5} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, ps5: event.target.value } })} /></label><label>VIP hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.vip} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, vip: event.target.value } })} /></label><label>Other hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.other} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, other: event.target.value } })} /></label></div>{shopError && <small className="form-error">{shopError}</small>}{shopSaved && <small className="form-success" role="status">Shop settings saved successfully.</small>}<button className="button button-primary" type="submit">Save business settings</button></form><div className="settings-grid"><form className="panel settings-card" onSubmit={(event) => { event.preventDefault(); updatePricing(values) }}><span className="eyebrow">Admin only</span><h3>Pricing control</h3><div className="pricing-form"><label>PS4 / minute<input type="number" step="0.01" min="0" value={values.ps4} onChange={(event) => setValues({ ...values, ps4: event.target.value })} /></label><label>PS5 / minute<input type="number" step="0.01" min="0" value={values.ps5} onChange={(event) => setValues({ ...values, ps5: event.target.value })} /></label><label>Other / minute<input type="number" step="0.01" min="0" value={values.other} onChange={(event) => setValues({ ...values, other: event.target.value })} /></label><label>Staff discount max %<input type="number" min="0" max="100" value={values.discountLimit} onChange={(event) => setValues({ ...values, discountLimit: event.target.value })} /></label></div><button className="button button-primary" type="submit">Save pricing</button></form><form className="panel settings-card" onSubmit={(event) => { event.preventDefault(); if (cash !== '') closeShift(cash) }}><span className="eyebrow">Cashier control</span><h3>Close current shift</h3><p>Expected cash: <b>{formatBirr(shift.expectedCash)}</b>{shift.closedAt && ` · Closed at ${shift.closedAt}`}</p><label>Actual physical cash<input type="number" min="0" step="0.01" value={cash} onChange={(event) => setCash(event.target.value)} required /></label><button className="button button-secondary" type="submit">Close shift</button></form></div><div className="user-management panel"><div className="panel-heading"><div><span className="eyebrow">Admin only</span><h3>User management</h3></div><span className="status-pill available">{users.length} users</span></div><form className="user-form" onSubmit={submitUser}><input placeholder="Full name" value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} required /><input placeholder="Username" value={userForm.username} onChange={(event) => setUserForm({ ...userForm, username: event.target.value.toLowerCase().replace(/\s/g, '') })} required /><input inputMode="tel" pattern="[0-9]{7,18}" placeholder="Phone (numbers only)" value={userForm.phone} onChange={(event) => setUserForm({ ...userForm, phone: event.target.value.replace(/\D/g, '') })} required /><select value={userForm.role} onChange={(event) => setUserForm({ ...userForm, role: event.target.value })}><option>Cashier</option><option>Admin</option></select><input inputMode="numeric" pattern="\d{6}" maxLength="6" placeholder="6-digit PIN" value={userForm.pin} onChange={(event) => setUserForm({ ...userForm, pin: event.target.value.replace(/\D/g, '') })} required /><button className="button button-primary" type="submit">Add user</button>{userError && <small className="form-error">{userError}</small>}</form><div className="user-list">{users.map((managedUser) => <div className="user-row" key={managedUser.id}><span className="avatar">{managedUser.name.split(' ').map((name) => name[0]).join('')}</span><span><strong>{managedUser.name}</strong><small>@{managedUser.username} · {managedUser.phone}</small></span>  <span className="status-pill">{managedUser.role}</span>{managedUser.name !== currentUser && <><button className="button button-secondary edit-user-button" type="button" onClick={() => editUser(managedUser)}>Edit</button><button className="button button-danger delete-user-button" type="button" onClick={() => { if (window.confirm(`Delete ${managedUser.name}?`)) deleteUser(managedUser.username) }}>  Delete</button></>}</div>)}</div></div></ModulePage>
+  return <ModulePage title="Settings & pricing" eyebrow="Owner/Admin controls for your shop identity, receipt details, rates, users, and shift close."><form className="panel shop-settings-form" onSubmit={submitShop}><div className="panel-heading"><div><span className="eyebrow">Business profile</span><h3>Shop settings</h3></div><span className="status-pill available">Admin only</span></div><div className="form-grid"><label>Shop name<input value={shopValues.name} onChange={(event) => setShopValues({ ...shopValues, name: event.target.value })} required /></label><label>Phone<input value={shopValues.phone} onChange={(event) => setShopValues({ ...shopValues, phone: event.target.value })} /></label><label className="wide">Receipt address<textarea value={shopValues.address} onChange={(event) => setShopValues({ ...shopValues, address: event.target.value })} /></label><label>PS4 hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.ps4} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, ps4: event.target.value } })} /></label><label>PS5 hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.ps5} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, ps5: event.target.value } })} /></label><label>VIP hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.vip} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, vip: event.target.value } })} /></label><label>Other hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.other} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, other: event.target.value } })} /></label></div>{shopError && <small className="form-error">{shopError}</small>}{shopSaved && <small className="form-success" role="status">Shop settings saved successfully.</small>}<button className="button button-primary" type="submit">Save business settings</button></form><div className="settings-grid"><StationSettings /><form className="panel settings-card" onSubmit={(event) => { event.preventDefault(); updatePricing(values) }}><span className="eyebrow">Admin only</span><h3>Pricing control</h3><div className="pricing-form"><label>PS4 / minute<input type="number" step="0.01" min="0" value={values.ps4} onChange={(event) => setValues({ ...values, ps4: event.target.value })} /></label><label>PS5 / minute<input type="number" step="0.01" min="0" value={values.ps5} onChange={(event) => setValues({ ...values, ps5: event.target.value })} /></label><label>Other / minute<input type="number" step="0.01" min="0" value={values.other} onChange={(event) => setValues({ ...values, other: event.target.value })} /></label><label>Staff discount max %<input type="number" min="0" max="100" value={values.discountLimit} onChange={(event) => setValues({ ...values, discountLimit: event.target.value })} /></label></div><button className="button button-primary" type="submit">Save pricing</button></form><form className="panel settings-card" onSubmit={(event) => { event.preventDefault(); if (cash !== '') closeShift(cash) }}><span className="eyebrow">Cashier control</span><h3>Close current shift</h3><p>Expected cash: <b>{formatBirr(shift.expectedCash)}</b>{shift.closedAt && ` · Closed at ${shift.closedAt}`}</p><label>Actual physical cash<input type="number" min="0" step="0.01" value={cash} onChange={(event) => setCash(event.target.value)} required /></label><button className="button button-secondary" type="submit">Close shift</button></form></div><div className="user-management panel"><div className="panel-heading"><div><span className="eyebrow">Admin only</span><h3>User management</h3></div><span className="status-pill available">{users.length} users</span></div><form className="user-form" onSubmit={submitUser}><input placeholder="Full name" value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} required /><input placeholder="Username" value={userForm.username} onChange={(event) => setUserForm({ ...userForm, username: event.target.value.toLowerCase().replace(/\s/g, '') })} required /><input inputMode="tel" pattern="[0-9]{7,18}" placeholder="Phone (numbers only)" value={userForm.phone} onChange={(event) => setUserForm({ ...userForm, phone: event.target.value.replace(/\D/g, '') })} required /><select value={userForm.role} onChange={(event) => setUserForm({ ...userForm, role: event.target.value })}><option>Cashier</option><option>Admin</option></select><input inputMode="numeric" pattern="\d{6}" maxLength="6" placeholder="6-digit PIN" value={userForm.pin} onChange={(event) => setUserForm({ ...userForm, pin: event.target.value.replace(/\D/g, '') })} required /><button className="button button-primary" type="submit">Add user</button>{userError && <small className="form-error">{userError}</small>}</form><div className="user-list">{users.map((managedUser) => <div className="user-row" key={managedUser.id}><span className="avatar">{managedUser.name.split(' ').map((name) => name[0]).join('')}</span><span><strong>{managedUser.name}</strong><small>@{managedUser.username} · {managedUser.phone}</small></span>  <span className="status-pill">{managedUser.role}</span>{managedUser.name !== currentUser && <><button className="button button-secondary edit-user-button" type="button" onClick={() => editUser(managedUser)}>Edit</button><button className="button button-danger delete-user-button" type="button" onClick={() => { if (window.confirm(`Delete ${managedUser.name}?`)) deleteUser(managedUser.username) }}>  Delete</button></>}</div>)}</div></div></ModulePage>
 }
 
 function POS({ products: initialProducts, addToCart, removeFromCart, cart, setModal }) {
