@@ -324,6 +324,11 @@ export function AppProvider({ children }) {
       dispatch({ type: 'SHOP', shop: result.shop })
       return result.shop
     },
+    refreshShopSettings: async () => {
+      const result = await getShopSettings()
+      dispatch({ type: 'SHOP', shop: result.shop })
+      return result.shop
+    },
     closeShift: (actualCash) => dispatch({ type: 'SHIFT_CLOSE', actualCash: Number(actualCash) }),
     addRemoteReservation: async (reservation) => {
       const result = await submitBooking(reservation)

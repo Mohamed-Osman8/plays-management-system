@@ -7,8 +7,9 @@ import BrandMark from './components/BrandMark'
 import PwaInstallButton from './components/PwaInstallButton'
 import Login from './pages/Login'
 import Register from './pages/Register'
-import SuperAdmin from './pages/SuperAdmin'
+import SuperAdmin from './pages/SuperAdminDashboard'
 import DemoMode from './pages/DemoMode'
+import SubscriptionPayments from './components/SubscriptionPayments'
 import './App.css'
 import './theme.css'
 
@@ -234,20 +235,18 @@ function LoginScreen() {
   )
 }
 
-function LicenseNotice({ onLogout }) {
+function LicenseNotice({ onLogout, onRenewed }) {
   return (
-    <main className="onboarding-shell">
-      <section className="panel onboarding-card payment-notice">
-        <span className="eyebrow">Subscription renewal required</span>
-        <h1>Your license has expired</h1>
-        <p>Please contact the platform administrator to renew. Include your shop name and registered phone number with your payment for manual verification.</p>
-        <div className="payment-details">
-          <strong>Telebirr</strong><span>0940867287</span>
-          <strong>CBE</strong><span>1000278200427</span>
-          <strong>Account name</strong><span>Mohamed Osman Buh</span>
-        </div>
-        <button className="button button-secondary" type="button" onClick={onLogout}>Sign out</button>
-      </section>
+    <main className="onboarding-shell license-renewal-page">
+      <div className="license-renewal-content">
+        <section className="panel onboarding-card payment-notice">
+          <span className="eyebrow">Subscription renewal required</span>
+          <h1>Your license has expired</h1>
+          <p>Renew your subscription below. Access will be restored after your payment is verified by the platform administrator.</p>
+          <button className="button button-secondary" type="button" onClick={onLogout}>Sign out</button>
+        </section>
+        <SubscriptionPayments onRenewed={onRenewed} />
+      </div>
     </main>
   )
 }
@@ -291,8 +290,9 @@ function AppShell() {
   if (route === 'login') return <Login />
   if (route === 'super-admin') return <SuperAdmin />
   if (route === 'demo') return <DemoMode />
-  if (route === 'license') return <LicenseNotice onLogout={() => { logout(); setRoute('login') }} />
-  if (route === 'home' || route === '' || route === 'booking' || route === 'public') return <PublicPortal />
+  if (route === 'license') return <LicenseNotice onLogout={() => { logout(); setRoute('login') }} onRenewed={() => setRoute('dashboard')} />
+  if (route === 'home' || route === '') return <Login />
+  if (route === 'booking' || route === 'public') return <PublicPortal />
   if (route === 'staff' && !authenticated) return <LoginScreen />
   if (!authenticated) return <LoginScreen />
   if (locked) {

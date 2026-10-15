@@ -8,6 +8,7 @@ export default function Login() {
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const submit = async (event) => {
     event.preventDefault()
@@ -29,24 +30,28 @@ export default function Login() {
   }
 
   return (
-    <main className="onboarding-shell onboarding-page">
+    <main className="onboarding-shell onboarding-page login-simple-page">
       <header className="onboarding-header">
-        <a className="sidebar-brand" href="#booking" onClick={(event) => { event.preventDefault(); setRoute('booking') }}>
+        <a className="sidebar-brand" href="#login" onClick={(event) => { event.preventDefault(); setRoute('login') }}>
           <BrandMark />
           <span>PLAYSTATION<br /><b>GAME ZONE</b></span>
         </a>
         <PwaInstallButton />
       </header>
-      <form className="panel onboarding-card" onSubmit={submit}>
-        <button className="onboarding-close" type="button" aria-label="Close sign in and return to the booking portal" title="Back to booking portal" onClick={() => setRoute('booking')}>×</button>
-        <span className="eyebrow">Game Zone account</span>
+      <form className="panel onboarding-card login-simple-card" onSubmit={submit}>
+        <BrandMark />
+        <span className="eyebrow">SECURE STAFF ACCESS</span>
         <h1>Sign in</h1>
         <p>Access your shop dashboard.</p>
-        <label>Phone number or username<input autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} required /></label>
-        <label>Password or PIN<input type="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required /></label>
+        <label>Phone number or username<input autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} placeholder="Enter your phone or username" required /></label>
+        <label>Password or PIN<span className="login-simple-password"><input type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="Enter your password or PIN" required /><button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? 'Hide' : 'Show'}</button></span></label>
         {error && <small className="form-error" role="alert">{error}</small>}
-        <button className="button button-primary" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-        <button className="text-button" type="button" onClick={() => setRoute('register')}>Create shop</button>
+        <button className="button button-primary login-simple-submit" type="submit" disabled={busy}>{busy ? <><span className="spinner" /> Signing in…</> : 'Sign in'}</button>
+        <div className="login-simple-links">
+          <button className="text-button" type="button" onClick={() => setRoute('register')}>Create your shop</button>
+          <button className="text-button" type="button" onClick={() => setRoute('booking')}>Customer booking</button>
+        </div>
+        <small className="login-hint">For access or credential resets, contact your administrator.</small>
       </form>
     </main>
   )

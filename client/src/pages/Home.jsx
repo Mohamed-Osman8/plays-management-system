@@ -5,6 +5,7 @@ import { formatBirr } from '../utils/currency'
 import { getProductImage } from '../utils/productImage'
 import { printReceipt } from '../utils/receipt'
 import BrandMark from '../components/BrandMark'
+import SubscriptionPayments from '../components/SubscriptionPayments'
 
 const navItems = [['dashboard', '▦', 'Dashboard'], ['sessions', '◷', 'Sessions'], ['stations', '▣', 'Stations'], ['reservations', '▣', 'Reservations'], ['pos', '⊞', 'POS & Sales'], ['inventory', '◈', 'Inventory'], ['expenses', '↘', 'Expenses'], ['reports', '▤', 'Reports'], ['settings', '⚙', 'Settings']]
 
@@ -719,7 +720,7 @@ function ModuleContent({ route }) {
   if (route === 'hardware') return <HardwareHealth hardware={hardware} reportHardwareIssue={reportHardwareIssue} />
   if (route === 'expenses') return <Expenses expenses={expenses} addExpense={addExpense} />
   if (route === 'reports') return role === 'Owner/Admin' ? <Reports auditLog={auditLog} /> : <ModulePage title="Reports" eyebrow="Restricted area"><div className="panel settings-card"><h3>Admin access required</h3><p>Financial reporting is available to administrators only.</p></div></ModulePage>
-  if (route === 'settings') return role === 'Owner/Admin' ? <Settings /> : <ModulePage title="Settings" eyebrow="Restricted area"><div className="panel settings-card"><h3>Admin access required</h3><p>Cashier/Staff accounts can operate stations, sessions, reservations, POS, inventory, and expenses, but cannot change pricing or sensitive settings.</p></div></ModulePage>
+  if (route === 'settings') return role === 'Owner/Admin' ? <><SubscriptionPayments /><Settings /></> : <ModulePage title="Settings" eyebrow="Restricted area"><div className="panel settings-card"><h3>Admin access required</h3><p>Cashier/Staff accounts can operate stations, sessions, reservations, POS, inventory, and expenses, but cannot change pricing or sensitive settings.</p></div></ModulePage>
   return <ModulePage title="Reports & exports" eyebrow="Revenue, expenses, staff performance, and audit records." />
 }
 

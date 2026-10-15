@@ -18,6 +18,7 @@ import salesRoutes from './routes/salesRoutes.js'
 import dashboardRoutes from './routes/dashboardRoutes.js'
 import shopRoutes from './routes/shopRoutes.js'
 import superAdminRoutes from './routes/superAdminRoutes.js'
+import paymentRoutes from './routes/paymentRoutes.js'
 
 const app = express()
 const DEFAULT_PORT = Number.parseInt(process.env.PORT || '5001', 10) || 5001
@@ -77,6 +78,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authLimiter, authRoutes)
 app.use('/api/super-admin', authLimiter, superAdminRoutes)
 app.use('/api', apiLimiter)
+app.use('/api/payments', paymentRoutes)
 app.use('/api/shop', shopRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/bookings', bookingRoutes)

@@ -216,12 +216,86 @@ select:focus, input:focus { border-color: var(--lime); }
 .onboarding-card > label { display: grid; gap: 7px; color: var(--muted); font-size: .7rem; }
 .onboarding-card .button { width: 100%; }
 .onboarding-card .text-button { justify-self: center; }
+.login-simple-page { background: radial-gradient(ellipse at 50% 12%, #1687ff1a, transparent 48%), var(--bg); }
+.login-simple-page .onboarding-header { max-width: 1120px; }
+.onboarding-page .login-simple-card { gap: 15px; width: min(100%, 410px); padding: 34px; border-color: #1687ff30; border-radius: 13px; background: linear-gradient(155deg, var(--panel), #101722); box-shadow: 0 22px 65px #0005; }
+.login-simple-card > .brand-mark { width: 44px; height: 44px; margin: 0 auto 2px; border-radius: 12px; }
+.login-simple-card > .eyebrow { text-align: center; }
+.login-simple-card h1 { text-align: center; font-size: 2rem; }
+.login-simple-card > p { margin-top: -8px; text-align: center; }
+.login-simple-card > label { gap: 8px; color: var(--muted); font-size: .7rem; }
+.login-simple-card input { min-height: 43px; }
+.login-simple-card input:focus { border-color: var(--lime); outline: none; box-shadow: 0 0 0 3px #1687ff20; }
+.login-simple-password { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.login-simple-password:focus-within { border-color: var(--lime); box-shadow: 0 0 0 3px #1687ff20; }
+.login-simple-password input { min-width: 0; flex: 1; border: 0; background: transparent; box-shadow: none; }
+.login-simple-password input:focus { box-shadow: none; }
+.login-simple-password button { align-self: stretch; padding: 0 12px; border: 0; color: var(--lime); background: transparent; font-size: .65rem; font-weight: 700; }
+.login-simple-card .login-simple-submit { min-height: 44px; margin-top: 2px; }
+.login-simple-links { display: flex; justify-content: space-between; gap: 10px; padding-top: 3px; }
+.login-simple-links .text-button { padding: 0; font-size: .68rem; }
+.login-simple-card .login-hint { margin-top: 0; text-align: center; }
 .registration-success { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid #0080ff55; border-radius: 7px; color: var(--lime); background: #0080ff0d; }
 .registration-success > span { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 auto; border-radius: 50%; color: #10150d; background: var(--lime); font-weight: 700; }
 .registration-success p { font-size: .72rem; line-height: 1.5; }
 .payment-notice { border-color: #ffad6655; }
 .payment-details { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); font-size: .75rem; }
 .payment-details span { color: var(--muted); }
+.subscription-payment-panel { width: min(100% - 48px, 900px); margin: 24px auto; padding: 22px; }
+.subscription-payment-description { margin: 12px 0 16px; color: var(--muted); font-size: .75rem; line-height: 1.6; }
+.subscription-accounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+.subscription-account { display: grid; gap: 8px; min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
+.subscription-account > span { color: var(--muted); font-size: .65rem; font-weight: 600; }
+.subscription-account small { display: block; margin-top: 4px; font-size: .6rem; font-weight: 400; }
+.subscription-account strong { color: var(--text); font-size: .78rem; overflow-wrap: anywhere; }
+.subscription-payment-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.subscription-payment-form label { display: grid; gap: 6px; color: var(--muted); font-size: .67rem; }
+.subscription-payment-form .subscription-reference-field, .subscription-payment-form .form-error, .subscription-payment-form .form-success, .subscription-payment-form > button { grid-column: 1 / -1; }
+.subscription-payment-form > button { justify-self: start; }
+.subscription-check-button { margin-left: 8px; }
+.subscription-payment-history { margin-top: 22px; border-top: 1px solid var(--line); }
+.subscription-payment-history h4 { margin: 16px 0 7px; font: 600 .85rem 'Space Grotesk'; }
+.subscription-payment-history > .empty-state { padding: 16px 0; color: var(--muted); font-size: .7rem; }
+.subscription-payment-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.subscription-payment-row > span:first-child { display: grid; gap: 4px; min-width: 0; }
+.subscription-payment-row strong { color: var(--text); font-size: .7rem; overflow-wrap: anywhere; }
+.subscription-payment-row small { color: var(--muted); font-size: .62rem; line-height: 1.5; }
+.subscription-payment-row .subscription-rejection-note { color: var(--red); }
+.license-renewal-page { align-content: center; gap: 0; }
+.license-renewal-content { width: 100%; padding: 28px 0; }
+.license-renewal-content .payment-notice { width: min(100% - 48px, 900px); margin: 0 auto; padding: 22px; }
+.license-renewal-content .payment-notice h1 { margin-top: 8px; font: 600 1.7rem 'Space Grotesk'; }
+.license-renewal-content .payment-notice > p { margin: 10px 0 16px; }
+.license-renewal-content .payment-notice > button { width: auto; }
+.license-renewal-content .subscription-payment-panel { margin-top: 14px; }
+.super-admin-tabs { display: flex; gap: 8px; margin: 20px 0 14px; border-bottom: 1px solid var(--line); }
+.super-admin-tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 11px 13px; border: 0; border-bottom: 2px solid transparent; color: var(--muted); background: transparent; font-size: .75rem; }
+.super-admin-tabs button.active { border-bottom-color: var(--lime); color: var(--text); }
+.super-admin-tabs button span { display: grid; place-items: center; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 10px; color: var(--text); background: var(--panel-2); font-size: .62rem; }
+.pending-payments-list { display: grid; gap: 12px; }
+.pending-payment-card { display: grid; grid-template-columns: 1.2fr 1fr 1.2fr 1fr auto; align-items: center; gap: 18px; padding: 18px; }
+.pending-payment-shop h2 { margin: 5px 0; font: 600 .95rem 'Space Grotesk'; }
+.pending-payment-shop > span:last-child, .pending-payment-detail span { color: var(--muted); font-size: .66rem; }
+.pending-payment-detail { display: grid; gap: 5px; min-width: 0; }
+.pending-payment-detail small { color: var(--muted); font-size: .6rem; }
+.pending-payment-detail strong { color: var(--text); font-size: .68rem; overflow-wrap: anywhere; }
+.pending-payment-actions { display: grid; gap: 7px; }
+.pending-payment-actions .button { white-space: nowrap; }
+@media (max-width: 800px) {
+  .pending-payment-card { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .pending-payment-actions { grid-column: 1 / -1; display: flex; }
+}
+@media (max-width: 600px) {
+  .subscription-payment-panel, .license-renewal-content .payment-notice { width: calc(100% - 24px); padding: 16px; }
+  .subscription-accounts { grid-template-columns: 1fr; }
+  .subscription-payment-form { grid-template-columns: 1fr; }
+  .subscription-payment-form > button { width: 100%; }
+  .subscription-check-button { margin: 0; }
+  .subscription-payment-row { align-items: flex-start; }
+  .pending-payment-card { grid-template-columns: 1fr; gap: 13px; }
+  .pending-payment-actions { grid-column: auto; }
+  .pending-payment-actions .button { flex: 1; }
+}
 .super-admin-page { min-height: 100vh; padding: 28px clamp(16px, 5vw, 64px); background: var(--bg); }
 .super-admin-page .page-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
 .super-admin-page h1 { margin: 6px 0 0; font: 600 2rem 'Space Grotesk'; }

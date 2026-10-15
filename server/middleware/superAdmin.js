@@ -6,7 +6,8 @@ export function requireSuperAdmin(req, res, next) {
   if (!match) return res.status(401).json({ message: 'Super admin authentication is required.' })
   try {
     const claims = jwt.verify(match[1], process.env.JWT_SECRET, { algorithms: ['HS256'] })
-    if (claims.role !== 'SuperAdmin') return res.status(403).json({ message: 'Super admin access is required.' })
+    const role = String(claims.role || '').trim().toLowerCase()
+    if (role !== 'superadmin') return res.status(403).json({ message: 'Super admin access is required.' })
     req.superAdmin = claims
     return next()
   } catch {

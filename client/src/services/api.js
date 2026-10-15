@@ -218,6 +218,14 @@ export function registerShop(data) {
   return request('/auth/register', { method: 'POST', body: JSON.stringify(data) })
 }
 
+export function getShopPaymentHistory() {
+  return request('/payments')
+}
+
+export function submitShopPayment(payment) {
+  return request('/payments', { method: 'POST', body: JSON.stringify(payment) })
+}
+
 async function superAdminRequest(path, token, options = {}) {
   const headers = new Headers(options.headers)
   headers.set('Accept', 'application/json')
@@ -242,6 +250,47 @@ export function superAdminLogin(credentials) {
 
 export function superAdminListShops(token) {
   return superAdminRequest('/super-admin/shops', token)
+}
+
+export function superAdminListPendingShops(token) {
+  return superAdminRequest('/super-admin/shops/pending', token)
+}
+
+export function superAdminListActiveShops(token) {
+  return superAdminRequest('/super-admin/shops/active', token)
+}
+
+export function superAdminActivateShop(token, shopId) {
+  return superAdminRequest(`/super-admin/shops/${shopId}/activate`, token, {
+    method: 'POST',
+    body: JSON.stringify({ paymentVerified: true, amount: 3000 })
+  })
+}
+
+export function superAdminRejectShop(token, shopId, notes = '') {
+  return superAdminRequest(`/super-admin/shops/${shopId}/reject`, token, {
+    method: 'POST',
+    body: JSON.stringify({ notes })
+  })
+}
+
+export function superAdminDeactivateShop(token, shopId) {
+  return superAdminRequest(`/super-admin/shops/${shopId}/deactivate`, token, { method: 'POST' })
+}
+
+export function superAdminListPendingPayments(token) {
+  return superAdminRequest('/super-admin/payments/pending', token)
+}
+
+export function superAdminApprovePayment(token, paymentId) {
+  return superAdminRequest(`/super-admin/payments/${paymentId}/approve`, token, { method: 'POST' })
+}
+
+export function superAdminRejectPayment(token, paymentId, notes) {
+  return superAdminRequest(`/super-admin/payments/${paymentId}/reject`, token, {
+    method: 'POST',
+    body: JSON.stringify({ notes })
+  })
 }
 
 export function superAdminExtendShop(token, shopId) {

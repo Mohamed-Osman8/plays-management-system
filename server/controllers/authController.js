@@ -5,6 +5,8 @@ import Shop from '../models/Shop.js'
 
 const LOCKOUT_THRESHOLD = 5
 const LOCKOUT_DURATION_MS = 120000
+const PENDING_SHOP_MESSAGE = 'Akoonkaaga wali ma firfircona. Fadlan kala xiriir maamulka Mohamed Osman (+251940867287) si loo kordhiyo/loo firfircooneeyo.'
+const INACTIVE_SHOP_MESSAGE = 'Akoonka dukaankan lama hawlgelin ama waa la hakiyey. Fadlan kala xiriir Mohamed Osman (+251940867287).'
 
 function publicUser(user) {
   return {
@@ -33,13 +35,14 @@ export async function registerShop(req, res, next) {
       return res.status(409).json({ message: 'That username or phone number is already registered.' })
     }
     const passwordHash = await bcrypt.hash(password, 12)
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     shop = await Shop.create({
       name,
       phone,
       ownerPhone: phone,
       ownerUsername: username,
-      license: { status: 'trial', plan: 'Free trial', expiresAt }
+      isApproved: false,
+      status: 'pending',
+      license: { status: 'locked', plan: 'Pending approval', expiresAt: null }
     })
     const user = await User.create({
       name,
@@ -51,9 +54,9 @@ export async function registerShop(req, res, next) {
       pinHash: passwordHash
     })
     return res.status(201).json({
-      message: 'Your shop is registered successfully.',
+      message: 'Diiwaangelintu way guulaysatay. Akoonkaagu wuxuu sugayaa oggolaanshaha maamulka. Fadlan kala xiriir Mohamed Osman (+251940867287).',
       user: publicUser(user),
-      shop: { id: String(shop._id), name: shop.name, license: shop.license }
+      shop: { id: String(shop._id), name: shop.name, isApproved: shop.isApproved, license: shop.license }
     })
   } catch (error) {
     if (shop?._id) await Shop.deleteOne({ _id: shop._id }).catch(() => {})
@@ -136,6 +139,19 @@ export async function login(req, res, next) {
     user.loginAttempts = 0
     user.lockoutUntil = null
     await user.save()
+
+    if (user.shopId) {
+      const shop = await Shop.findById(user.shopId).select('isApproved status')
+      if (!shop) {
+        return res.status(403).json({ code: 'SHOP_NOT_ACTIVE', message: 'This account is not linked to an active shop.' })
+      }
+      if (shop.status === 'inactive' || shop.status === 'rejected') {
+        return res.status(403).json({ code: 'SHOP_INACTIVE', message: INACTIVE_SHOP_MESSAGE })
+      }
+      if (shop.isApproved === false || shop.status === 'pending') {
+        return res.status(403).json({ code: 'SHOP_PENDING_APPROVAL', message: PENDING_SHOP_MESSAGE })
+      }
+    }
 
     if (!process.env.JWT_SECRET) {
       return next(new Error('JWT_SECRET is not configured.'))
