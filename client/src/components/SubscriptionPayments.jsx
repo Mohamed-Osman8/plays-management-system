@@ -5,9 +5,9 @@ import { useApp } from '../context/useApp'
 
 const MONTHLY_PRICE = 3000
 const PAYMENT_ACCOUNTS = [
-  { label: 'CBE Bank Account', number: '1000278200427' },
-  { label: 'Telebirr', number: '0940867287' },
-  { label: 'CBE Birr', number: '0940867287' }
+  { method: 'Telebirr', label: 'Telebirr account', number: '0940867287' },
+  { method: 'E-Birr', label: 'E-Birr account', number: '0940867287' },
+  { method: 'CBE Bank Transfer', label: 'CBE Bank account', number: '1000278200427' }
 ]
 
 function displayDate(date) {
@@ -25,6 +25,9 @@ export default function SubscriptionPayments({ onRenewed }) {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [checking, setChecking] = useState(false)
+  const [copiedAccount, setCopiedAccount] = useState(false)
+  const selectedAccount = PAYMENT_ACCOUNTS.find((account) => account.method === paymentMethod)
+  const amountDue = MONTHLY_PRICE * monthsRequested
 
   const refresh = async () => {
     const result = await getShopPaymentHistory()
@@ -64,6 +67,18 @@ export default function SubscriptionPayments({ onRenewed }) {
     }
   }
 
+  const copyAccountNumber = async () => {
+    if (!selectedAccount) return
+    setError('')
+    try {
+      await window.navigator.clipboard.writeText(selectedAccount.number)
+      setCopiedAccount(true)
+      window.setTimeout(() => setCopiedAccount(false), 2000)
+    } catch (copyError) {
+      setError(copyError.message || 'Unable to copy the account number. Please copy it manually.')
+    }
+  }
+
   const checkRenewal = async () => {
     setChecking(true)
     setError('')
@@ -83,19 +98,20 @@ export default function SubscriptionPayments({ onRenewed }) {
       <div><span className="eyebrow">Manual payment</span><h3>Renew your subscription</h3></div>
       <span className="status-pill reserved">{formatBirr(MONTHLY_PRICE)} / month</span>
     </div>
-    <p className="subscription-payment-description">Send the renewal amount to one of the official accounts below. Enter the transaction reference so the platform team can verify your payment.</p>
-    <div className="subscription-accounts">
-      {PAYMENT_ACCOUNTS.map((account) => <div className="subscription-account" key={account.label}>
-        <span>{account.label}<small>Mohamed Osman</small></span><strong>{account.number}</strong>
-      </div>)}
-    </div>
+    <p className="subscription-payment-description">Choose a payment method, send the amount to its account, then enter your receipt reference for manual verification.</p>
     <form className="subscription-payment-form" onSubmit={submit}>
       <label>Renewal period<select value={monthsRequested} onChange={(event) => setMonthsRequested(Number(event.target.value))}>
         {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option value={month} key={month}>{month} month{month === 1 ? '' : 's'} · {formatBirr(MONTHLY_PRICE * month)}</option>)}
       </select></label>
-      <label>Payment method<select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
-        <option>Telebirr</option><option>CBE Birr</option><option>CBE Bank Transfer</option>
+      <label>Choose payment method<select value={paymentMethod} onChange={(event) => { setPaymentMethod(event.target.value); setCopiedAccount(false); setError('') }}>
+        <option>Telebirr</option><option>E-Birr</option><option>CBE Bank Transfer</option>
       </select></label>
+      {selectedAccount && <div className="subscription-selected-payment" aria-live="polite">
+        <div className="subscription-selected-payment-heading"><span className="subscription-payment-step">1</span><span><strong>Pay with {paymentMethod}</strong><small>Send {formatBirr(amountDue)} to this account</small></span></div>
+        <div className="subscription-account-number"><span>{selectedAccount.label}<small>Account name: Mohamed Osman</small></span><strong>{selectedAccount.number}</strong></div>
+        <button className="button button-secondary subscription-copy-account" type="button" onClick={copyAccountNumber}>{copiedAccount ? 'Account number copied ✓' : 'Copy account number'}</button>
+        <p>After sending the payment, enter the transaction reference below. Your subscription will be renewed after the platform team verifies it.</p>
+      </div>}
       <label className="subscription-reference-field">Transaction reference<input value={transactionReference} onChange={(event) => setTransactionReference(event.target.value)} maxLength="120" placeholder="Enter the receipt or transaction number" required /></label>
       {error && <small className="form-error" role="alert">{error}</small>}
       {message && <small className="form-success" role="status">{message}</small>}

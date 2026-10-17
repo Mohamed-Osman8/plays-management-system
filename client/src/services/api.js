@@ -240,7 +240,11 @@ async function superAdminRequest(path, token, options = {}) {
     cache: 'no-store',
   })
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.message || 'Super admin request failed.')
+  if (!response.ok) {
+    const error = new Error(body.message || 'Super admin request failed.')
+    Object.assign(error, body, { status: response.status })
+    throw error
+  }
   return body
 }
 

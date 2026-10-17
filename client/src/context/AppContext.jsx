@@ -251,7 +251,7 @@ export function AppProvider({ children }) {
         window.localStorage.removeItem('game-zone-super-admin-token')
         window.localStorage.removeItem('game-zone-super-admin-user')
         dispatch({ type: 'LOGOUT' })
-        if (error.status === 401 || error.status === 429) dispatch({ type: 'LOGIN_FAILED' })
+        if (error.status === 401) dispatch({ type: 'LOGIN_FAILED' })
         if (error.lockoutUntil) dispatch({ type: 'LOGIN_LOCKOUT', lockoutUntil: error.lockoutUntil })
         return { ok: false, message: error.message || 'Invalid username or password.', remainingSeconds: error.remainingSeconds }
       }

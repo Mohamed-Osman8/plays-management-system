@@ -248,6 +248,19 @@ select:focus, input:focus { border-color: var(--lime); }
 .subscription-account > span { color: var(--muted); font-size: .65rem; font-weight: 600; }
 .subscription-account small { display: block; margin-top: 4px; font-size: .6rem; font-weight: 400; }
 .subscription-account strong { color: var(--text); font-size: .78rem; overflow-wrap: anywhere; }
+.subscription-selected-payment { display: grid; gap: 12px; grid-column: 1 / -1; padding: 15px; border: 1px solid #2c5b85; border-radius: 10px; background: linear-gradient(145deg, #10243a, #111a26); }
+.subscription-selected-payment-heading { display: flex; align-items: center; gap: 10px; }
+.subscription-selected-payment-heading > span:last-child { display: grid; gap: 4px; }
+.subscription-selected-payment-heading strong { color: #e4f3ff; font-size: .76rem; }
+.subscription-selected-payment-heading small, .subscription-selected-payment > p { color: #9aacc0; font-size: .64rem; line-height: 1.55; }
+.subscription-payment-step { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border-radius: 8px; color: #c2e5ff; background: #1761a0; font-size: .68rem; font-weight: 700; }
+.subscription-account-number { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border: 1px solid #31455e; border-radius: 8px; background: #0b111a; }
+.subscription-account-number > span { color: #cbd6e3; font-size: .68rem; font-weight: 600; }
+.subscription-account-number small { display: block; margin-top: 4px; color: #8395aa; font-size: .6rem; font-weight: 400; }
+.subscription-account-number strong { color: #80c6ff; font: 600 .9rem 'Space Grotesk'; letter-spacing: .04em; overflow-wrap: anywhere; }
+.subscription-copy-account { justify-self: start; min-height: 34px; padding: 0 12px; border-color: #3a5b79; color: #c6e4ff; font-size: .63rem; }
+.subscription-selected-payment > p { margin: 0; }
+.subscription-payment-form .subscription-selected-payment { grid-column: 1 / -1; }
 .subscription-payment-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .subscription-payment-form label { display: grid; gap: 6px; color: var(--muted); font-size: .67rem; }
 .subscription-payment-form .subscription-reference-field, .subscription-payment-form .form-error, .subscription-payment-form .form-success, .subscription-payment-form > button { grid-column: 1 / -1; }

@@ -2,7 +2,7 @@ import Payment from '../models/Payment.js'
 import Shop from '../models/Shop.js'
 
 const MONTHLY_AMOUNT = 3000
-const PAYMENT_METHODS = ['Telebirr', 'CBE Birr', 'CBE Bank Transfer']
+const PAYMENT_METHODS = ['Telebirr', 'E-Birr', 'CBE Bank Transfer']
 
 export async function submitPayment(req, res, next) {
   try {

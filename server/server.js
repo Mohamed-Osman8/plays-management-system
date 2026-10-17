@@ -70,13 +70,21 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many authentication attempts. Please try again later.' }
 })
+const superAdminAuthLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 10 * 30 * 1000),
+  limit: Number(process.env.AUTH_RATE_LIMIT_MAX || 10),
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { message: 'Too many authentication attempts. Please try again later.' }
+})
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'playstation-game-zone-server' })
 })
 
 app.use('/api/auth', authLimiter, authRoutes)
-app.use('/api/super-admin', authLimiter, superAdminRoutes)
+app.use('/api/super-admin/login', superAdminAuthLimiter)
+app.use('/api/super-admin', apiLimiter, superAdminRoutes)
 app.use('/api', apiLimiter)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/shop', shopRoutes)

@@ -5,7 +5,7 @@ import { superAdminActivateShop, superAdminApprovePayment, superAdminDeactivateS
 import { formatBirr } from '../utils/currency'
 
 const TOKEN_KEY = 'game-zone-super-admin-token'
-const PAYMENT_INFO = 'CBE Bank: 1000278200427 · Telebirr: 0940867287 · CBE Birr: 0940867287 · Mohamed Osman'
+const PAYMENT_INFO = 'CBE Bank: 1000278200427 · Telebirr: 0940867287 · E-Birr: 0940867287 · Mohamed Osman'
 
 export default function SuperAdminDashboard() {
   const { setRoute } = useApp()
@@ -38,6 +38,7 @@ export default function SuperAdminDashboard() {
     setActiveShops(activeResult.shops || [])
     setPendingShops(pendingResult.shops || [])
     setPayments(paymentsResult.payments || [])
+    setError('')
   }
 
   useEffect(() => {
@@ -50,13 +51,16 @@ export default function SuperAdminDashboard() {
         setPendingShops(pendingResult.shops || [])
         setPayments(paymentsResult.payments || [])
         setLoaded(true)
+        setError('')
       })
       .catch((requestError) => {
         if (cancelled) return
         setError(requestError.message || 'Unable to load registered shops.')
         setLoaded(true)
-        window.localStorage.removeItem(TOKEN_KEY)
-        setToken('')
+        if (requestError.status === 401 || requestError.status === 403) {
+          window.localStorage.removeItem(TOKEN_KEY)
+          setToken('')
+        }
       })
     return () => { cancelled = true }
   }, [token])
