@@ -6,9 +6,7 @@ import Navbar from './components/Navbar'
 import BrandMark from './components/BrandMark'
 import PwaInstallButton from './components/PwaInstallButton'
 import Login from './pages/Login'
-import Register from './pages/Register'
 import SuperAdmin from './pages/SuperAdminDashboard'
-import DemoMode from './pages/DemoMode'
 import SubscriptionPayments from './components/SubscriptionPayments'
 import './App.css'
 import './theme.css'
@@ -286,15 +284,10 @@ function AppShell() {
     }
   }, [lockApp])
 
-  if (route === 'register') return <Register />
+  if (!authenticated) return <Login />
   if (route === 'login') return <Login />
   if (route === 'super-admin') return <SuperAdmin />
-  if (route === 'demo') return <DemoMode />
   if (route === 'license') return <LicenseNotice onLogout={() => { logout(); setRoute('login') }} onRenewed={() => setRoute('dashboard')} />
-  if (route === 'home' || route === '') return <Login />
-  if (route === 'booking' || route === 'public') return <PublicPortal />
-  if (route === 'staff' && !authenticated) return <LoginScreen />
-  if (!authenticated) return <LoginScreen />
   if (locked) {
     return (
       <main className="lock-screen">

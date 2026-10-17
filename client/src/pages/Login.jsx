@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useApp } from '../context/useApp'
-import PwaInstallButton from '../components/PwaInstallButton'
 import BrandMark from '../components/BrandMark'
 
 export default function Login() {
@@ -30,29 +29,81 @@ export default function Login() {
   }
 
   return (
-    <main className="onboarding-shell onboarding-page login-simple-page">
-      <header className="onboarding-header">
-        <a className="sidebar-brand" href="#login" onClick={(event) => { event.preventDefault(); setRoute('login') }}>
-          <BrandMark />
-          <span>PLAYSTATION<br /><b>GAME ZONE</b></span>
-        </a>
-        <PwaInstallButton />
-      </header>
-      <form className="panel onboarding-card login-simple-card" onSubmit={submit}>
-        <BrandMark />
-        <span className="eyebrow">SECURE STAFF ACCESS</span>
-        <h1>Sign in</h1>
-        <p>Access your shop dashboard.</p>
-        <label>Phone number or username<input autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} placeholder="Enter your phone or username" required /></label>
-        <label>Password or PIN<span className="login-simple-password"><input type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="Enter your password or PIN" required /><button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? 'Hide' : 'Show'}</button></span></label>
-        {error && <small className="form-error" role="alert">{error}</small>}
-        <button className="button button-primary login-simple-submit" type="submit" disabled={busy}>{busy ? <><span className="spinner" /> Signing in…</> : 'Sign in'}</button>
-        <div className="login-simple-links">
-          <button className="text-button" type="button" onClick={() => setRoute('register')}>Create your shop</button>
-          <button className="text-button" type="button" onClick={() => setRoute('booking')}>Customer booking</button>
-        </div>
-        <small className="login-hint">For access or credential resets, contact your administrator.</small>
-      </form>
+    <main className="login-page">
+      <div className="login-backdrop-grid" aria-hidden="true" />
+      <div className="login-layout">
+        <section className="login-showcase">
+          <a className="login-brand" href="#login" onClick={(event) => event.preventDefault()}>
+            <BrandMark />
+            <span>PLAYSTATION<br /><b>GAME ZONE</b></span>
+          </a>
+          <div className="login-showcase-copy">
+            <span className="login-system-tag"><i /> GAME ZONE OPERATIONS</span>
+            <p className="login-showcase-kicker">PLAY <i>·</i> MANAGE <i>·</i> GROW</p>
+            <h1>Your game zone.<br /><span>In control.</span></h1>
+            <p className="login-showcase-description">Every station, session and sale — together in one place.</p>
+            <div className="login-showcase-status">
+              <span className="login-status-icon" aria-hidden="true">↗</span>
+              <span><b>One smart dashboard</b><small>Made for the way you play</small></span>
+              <span className="login-status-pulse" aria-hidden="true" />
+            </div>
+          </div>
+          <p className="login-showcase-footer">PLAYSTATION GAME ZONE <i /> MANAGEMENT SYSTEM</p>
+          <div className="login-orbit login-orbit-one" aria-hidden="true" />
+          <div className="login-orbit login-orbit-two" aria-hidden="true" />
+        </section>
+
+        <section className="login-form-side">
+          <form className="login-form-card" onSubmit={submit}>
+            <div className="login-mobile-brand"><BrandMark /><span>PLAYSTATION <b>GAME ZONE</b></span></div>
+            <span className="eyebrow login-eyebrow">SECURE STAFF ACCESS</span>
+            <h2>Welcome back<span>.</span></h2>
+            <p className="login-form-intro">Sign in to your operations dashboard.</p>
+
+            <label className="login-field">
+              <span>Phone number or username</span>
+              <input
+                autoComplete="username"
+                value={form.username}
+                onChange={(event) => setForm({ ...form, username: event.target.value })}
+                placeholder="Enter your phone or username"
+                required
+              />
+            </label>
+
+            <label className="login-field">
+              <span>Password or PIN</span>
+              <span className="login-password-input">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={form.password}
+                  onChange={(event) => setForm({ ...form, password: event.target.value })}
+                  placeholder="Enter your password or PIN"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? 'HIDE' : 'SHOW'}
+                </button>
+              </span>
+            </label>
+
+            {error && <small className="login-error" role="alert">{error}</small>}
+            <button className="button button-primary login-submit" type="submit" disabled={busy}>
+              {busy ? <><span className="spinner" /> Signing in…</> : <>Sign in <span aria-hidden="true">→</span></>}
+            </button>
+            <div className="login-form-footer">
+              <span className="login-secure-indicator"><i /> SECURE SIGN IN</span>
+              <span>Need help? Contact your administrator.</span>
+            </div>
+          </form>
+          <span className="login-copyright">© 2026 PLAYSTATION GAME ZONE</span>
+        </section>
+      </div>
     </main>
   )
 }

@@ -10,11 +10,11 @@ const INACTIVE_SHOP_MESSAGE = 'Akoonka dukaankan lama hawlgelin ama waa la hakiy
 
 function publicUser(user) {
   return {
-    id: String(user._id),
-    name: user.name,
+    id: user._id ? String(user._id) : 'superadmin-id',
+    name: user.name || 'Mohamed Osman (Super-Admin)',
     username: user.username,
     role: user.role,
-    phone: user.phone,
+    phone: user.phone || '+251940867287',
     shopId: user.shopId ? String(user.shopId) : null
   }
 }
@@ -84,6 +84,43 @@ export async function login(req, res, next) {
       })
     }
 
+    if (!process.env.JWT_SECRET) {
+      return next(new Error('JWT_SECRET is not configured.'))
+    }
+
+    // ⚡ 1. SUPER-ADMIN BYPASS (Env Variables Check)
+    const envSuperAdminUsername = (process.env.SUPER_ADMIN_USERNAME || 'mohamed').toLowerCase()
+    const envSuperAdminPassword = process.env.SUPER_ADMIN_PASSWORD || 'mohamed12345'
+
+    if (identity === envSuperAdminUsername && credential === envSuperAdminPassword) {
+      const superAdminUser = {
+        _id: 'superadmin_static_id',
+        name: 'Mohamed Osman (Super-Admin)',
+        username: envSuperAdminUsername,
+        role: 'superadmin',
+        phone: '+251940867287',
+        shopId: null
+      }
+
+      const token = jwt.sign(
+        {
+          sub: superAdminUser._id,
+          role: 'superadmin',
+          username: superAdminUser.username,
+          shopId: null
+        },
+        process.env.JWT_SECRET,
+        { algorithm: 'HS256', expiresIn: '12h' }
+      )
+
+      return res.json({
+        token,
+        accessToken: token,
+        user: publicUser(superAdminUser)
+      })
+    }
+
+    // ⚡ 2. DUKAAMADA CAADIGA AH (Database Check)
     const identityQuery = [{ username: identity }]
     if (normalizedPhone) {
       identityQuery.push({ username: normalizedPhone }, { phone: identity }, { phone: normalizedPhone })
@@ -91,6 +128,19 @@ export async function login(req, res, next) {
     const user = await User.findOne({ $or: identityQuery }).select('+passwordHash +pinHash')
     if (!user) {
       return res.status(401).json({ message: 'Invalid username or password.' })
+    }
+
+    // Super-admin ku jira Database-ka
+    if (user.role && user.role.toLowerCase() === 'superadmin') {
+      const passwordMatches = user.passwordHash ? await bcrypt.compare(credential, user.passwordHash) : false
+      if (passwordMatches) {
+        const token = jwt.sign(
+          { sub: String(user._id), role: 'superadmin', username: user.username, shopId: null },
+          process.env.JWT_SECRET,
+          { algorithm: 'HS256', expiresIn: '12h' }
+        )
+        return res.json({ token, accessToken: token, user: publicUser(user) })
+      }
     }
 
     const now = Date.now()
@@ -151,10 +201,6 @@ export async function login(req, res, next) {
       if (shop.isApproved === false || shop.status === 'pending') {
         return res.status(403).json({ code: 'SHOP_PENDING_APPROVAL', message: PENDING_SHOP_MESSAGE })
       }
-    }
-
-    if (!process.env.JWT_SECRET) {
-      return next(new Error('JWT_SECRET is not configured.'))
     }
 
     const token = jwt.sign(
