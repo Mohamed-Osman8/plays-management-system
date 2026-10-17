@@ -298,6 +298,9 @@ function Inventory({ initialProducts }) {
   const [products, setProducts] = useState(initialProducts)
   const [form, setForm] = useState({ name: '', category: 'Drinks', price: '', stock: '' })
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [saving, setSaving] = useState(false)
   const previewImage = getProductImage(form.name, form.category)
 
   useEffect(() => {
@@ -306,27 +309,49 @@ function Inventory({ initialProducts }) {
 
   const save = async (event) => {
     event.preventDefault()
+    if (saving) return
+    setSaving(true)
+    setError('')
+    setNotice('')
     try {
-      const result = await createProduct({ ...form, imageUrl: previewImage, price: Number(form.price), stock: Number(form.stock) })
+      const result = await createProduct({
+        ...form,
+        imageUrl: previewImage,
+        price: Number(form.price),
+        stock: form.stock === '' ? 0 : Number(form.stock)
+      })
       setProducts((current) => [...current, result.product])
       setForm({ name: '', category: 'Drinks', price: '', stock: '' })
-      setError('')
+      setNotice('Product added successfully.')
     } catch (requestError) {
-      setError(requestError.message)
+      setError(requestError.message || 'Unable to add product.')
+    } finally {
+      setSaving(false)
     }
   }
 
-  const edit = async (product) => {
-    const name = window.prompt('Product name', product.name)
-    const category = window.prompt('Category', product.category)
-    const price = window.prompt('Price', product.price)
-    const stock = window.prompt('Stock quantity', product.stock)
-    if (name === null || category === null || price === null || stock === null) return
+  const edit = async (event) => {
+    event.preventDefault()
+    if (!editingProduct || saving) return
+    const { name, category, price, stock } = editingProduct
+    setSaving(true)
+    setError('')
     try {
-      const result = await updateProduct(product._id || product.id, { name, category, imageUrl: getProductImage(name, category), price: Number(price), stock: Number(stock) })
-      setProducts((current) => current.map((item) => (item._id || item.id) === (product._id || product.id) ? result.product : item))
+      const updates = {
+        name: name.trim(),
+        category,
+        imageUrl: getProductImage(name, category),
+        price: Number(price)
+      }
+      if (stock !== '') updates.stock = Number(stock)
+      const result = await updateProduct(editingProduct._id || editingProduct.id, updates)
+      setProducts((current) => current.map((item) => (item._id || item.id) === (editingProduct._id || editingProduct.id) ? result.product : item))
+      setEditingProduct(null)
+      setNotice('Product updated successfully.')
     } catch (requestError) {
-      setError(requestError.message)
+      setError(requestError.message || 'Unable to update product.')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -341,19 +366,33 @@ function Inventory({ initialProducts }) {
   }
 
   return <ModulePage title="Inventory" eyebrow="Track products, stock levels, and point-of-sale items.">
+    {notice && <small className="form-success" role="status">{notice}</small>}
+    {error && !editingProduct && <small className="form-error" role="alert">{error}</small>}
     <form className="panel modal-form" onSubmit={save}>
       <h3>Add product</h3>
       <label>Name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
       <label>Category<select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option>Drinks</option><option>Food</option><option>Accessories</option><option>Other</option></select></label>
       <div className="product-image-preview"><img src={previewImage} alt={form.name ? `${form.name} preview` : 'Suggested product image'} onError={(event) => { event.currentTarget.hidden = true }} /><span>{form.name || 'Product image preview'}</span><small>Image selected automatically from the product name</small></div>
       <label>Price<input type="number" min="0" step="0.01" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} required /></label>
-      <label>Stock<input type="number" min="0" value={form.stock} onChange={(event) => setForm({ ...form, stock: event.target.value })} required /></label>
-      {error && <small className="form-error">{error}</small>}
-      <button className="button button-primary" type="submit">Add product</button>
+      <label>Stock (optional)<input type="number" min="0" step="1" value={form.stock} onChange={(event) => setForm({ ...form, stock: event.target.value })} placeholder="Defaults to 0" /></label>
+      <button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Adding…' : 'Add product'}</button>
     </form>
     <div className="table-panel"><TableHeader columns={['Product', 'Category', 'In stock', 'Price', 'Status', 'Actions']} />
-      {products.map((product) => <div className="table-row" key={product._id || product.id}><strong className="inventory-product"><img src={product.imageUrl || getProductImage(product.name, product.category)} alt="" onError={(event) => { event.currentTarget.hidden = true }} />{product.name}</strong><span>{product.category}</span><span>{product.stock} units</span><span>{formatBirr(Number(product.price))}</span><span className={`status-pill ${product.stock <= 5 ? 'maintenance' : 'available'}`}>{product.stock <= 5 ? 'Low stock' : 'In stock'}</span><span><button className="text-button" type="button" onClick={() => edit(product)}>Edit</button><button className="text-button" type="button" onClick={() => remove(product)}>Delete</button></span></div>)}
+      {products.map((product) => <div className="table-row" key={product._id || product.id}><strong className="inventory-product"><img src={product.imageUrl || getProductImage(product.name, product.category)} alt="" onError={(event) => { event.currentTarget.hidden = true }} />{product.name}</strong><span>{product.category}</span><span>{product.stock} units</span><span>{formatBirr(Number(product.price))}</span><span className={`status-pill ${product.stock <= 5 ? 'maintenance' : 'available'}`}>{product.stock <= 5 ? 'Low stock' : 'In stock'}</span><span><button className="text-button" type="button" onClick={() => { setEditingProduct({ ...product, stock: String(product.stock ?? '') }); setError(''); setNotice('') }}>Edit</button><button className="text-button" type="button" onClick={() => remove(product)}>Delete</button></span></div>)}
     </div>
+    {editingProduct && <Modal title="Edit product" eyebrow="Update inventory details" onClose={() => { if (!saving) { setEditingProduct(null); setError('') } }}>
+      <form className="modal-form" onSubmit={edit}>
+        <label>Name<input value={editingProduct.name} onChange={(event) => setEditingProduct({ ...editingProduct, name: event.target.value })} required disabled={saving} /></label>
+        <label>Category<select value={editingProduct.category || 'Other'} onChange={(event) => setEditingProduct({ ...editingProduct, category: event.target.value })} disabled={saving}><option>Drinks</option><option>Food</option><option>Accessories</option><option>Other</option></select></label>
+        <label>Price<input type="number" min="0" step="0.01" value={editingProduct.price} onChange={(event) => setEditingProduct({ ...editingProduct, price: event.target.value })} required disabled={saving} /></label>
+        <label>Stock (optional)<input type="number" min="0" step="1" value={editingProduct.stock} onChange={(event) => setEditingProduct({ ...editingProduct, stock: event.target.value })} placeholder="Leave blank to keep current stock" disabled={saving} /></label>
+        {error && <small className="form-error" role="alert">{error}</small>}
+        <div className="modal-actions">
+          <button className="button button-secondary" type="button" onClick={() => { setEditingProduct(null); setError('') }} disabled={saving}>Cancel</button>
+          <button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
+        </div>
+      </form>
+    </Modal>}
   </ModulePage>
 }
 

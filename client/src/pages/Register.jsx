@@ -35,14 +35,14 @@ export default function Register() {
   return (
     <main className="onboarding-shell onboarding-page">
       <header className="onboarding-header">
-        <a className="sidebar-brand" href="#booking" onClick={(event) => { event.preventDefault(); setRoute('booking') }}>
+        <a className="sidebar-brand" href="#login" onClick={(event) => { event.preventDefault(); setRoute('login') }}>
           <BrandMark />
           <span>PLAYSTATION<br /><b>GAME ZONE</b></span>
         </a>
         <PwaInstallButton />
       </header>
       <form className="panel onboarding-card" onSubmit={submit}>
-        <button className="onboarding-close" type="button" aria-label="Close shop registration and return to the booking portal" title="Back to booking portal" onClick={() => setRoute('booking')}>×</button>
+        <button className="onboarding-close" type="button" aria-label="Close shop registration and return to sign in" title="Back to sign in" onClick={() => setRoute('login')}>×</button>
         <span className="eyebrow">Create your store</span>
         <h1>Create your game zone</h1>
         <p>Register your store. The platform administrator must approve your shop before you can sign in.</p>

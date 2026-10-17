@@ -61,8 +61,7 @@ export async function getPendingShops(_req, res, next) {
 export async function getActiveShops(_req, res, next) {
   try {
     const shops = await Shop.find({
-      isApproved: { $ne: false },
-      status: { $nin: ['pending', 'inactive', 'rejected'] }
+      status: { $nin: ['pending', 'rejected'] }
     }).select('name phone ownerPhone ownerUsername isApproved status approvedAt license createdAt').sort({ createdAt: -1 }).lean()
     return res.json({
       shops: shops.map((shop) => ({
@@ -205,12 +204,26 @@ export async function setShopLock(req, res, next) {
   try {
     const { locked } = req.body || {}
     if (typeof locked !== 'boolean') return res.status(400).json({ message: 'locked must be a boolean.' })
-    const shop = await Shop.findByIdAndUpdate(
-      req.params.id,
-      { $set: { 'license.status': locked ? 'locked' : 'active' } },
+    const filter = locked
+      ? { _id: req.params.id, status: { $nin: ['pending', 'rejected'] } }
+      : { _id: req.params.id, status: 'inactive', isApproved: false }
+    const shop = await Shop.findOneAndUpdate(
+      filter,
+      {
+        $set: {
+          isApproved: !locked,
+          status: locked ? 'inactive' : 'active',
+          'license.status': locked ? 'locked' : 'active'
+        }
+      },
       { new: true, runValidators: true }
     )
-    if (!shop) return res.status(404).json({ message: 'Shop not found.' })
+    if (!shop) {
+      const exists = await Shop.exists({ _id: req.params.id })
+      return exists
+        ? res.status(409).json({ message: locked ? 'This shop cannot be blocked in its current state.' : 'This shop is not blocked.' })
+        : res.status(404).json({ message: 'Shop not found.' })
+    }
     return res.json({ shop })
   } catch (error) {
     return next(error)

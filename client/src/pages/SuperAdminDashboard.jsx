@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { superAdminActivateShop, superAdminApprovePayment, superAdminDeactivateShop, superAdminExtendShop, superAdminListActiveShops, superAdminListPendingPayments, superAdminListPendingShops, superAdminLogin, superAdminRejectPayment, superAdminRejectShop } from '../services/api'
+import { useApp } from '../context/useApp'
+import { superAdminActivateShop, superAdminApprovePayment, superAdminDeactivateShop, superAdminExtendShop, superAdminListActiveShops, superAdminListPendingPayments, superAdminListPendingShops, superAdminLogin, superAdminRejectPayment, superAdminRejectShop, superAdminSetShopLock } from '../services/api'
 import { formatBirr } from '../utils/currency'
 
 const TOKEN_KEY = 'game-zone-super-admin-token'
 const PAYMENT_INFO = 'CBE Bank: 1000278200427 · Telebirr: 0940867287 · CBE Birr: 0940867287 · Mohamed Osman'
 
 export default function SuperAdminDashboard() {
+  const { setRoute } = useApp()
   const [token, setToken] = useState(() => window.localStorage.getItem(TOKEN_KEY) || '')
   const [credentials, setCredentials] = useState({ username: '', password: '' })
   const [activeShops, setActiveShops] = useState([])
@@ -19,6 +21,7 @@ export default function SuperAdminDashboard() {
   const [busyId, setBusyId] = useState('')
   const [activatingId, setActivatingId] = useState('')
   const [busyPaymentId, setBusyPaymentId] = useState('')
+  const [confirmShop, setConfirmShop] = useState(null)
 
   const loadPlatformData = async (accessToken) => {
     const [activeResult, pendingResult, paymentsResult] = await Promise.all([
@@ -81,17 +84,38 @@ export default function SuperAdminDashboard() {
   }
 
   const mutateShop = async (shop, action) => {
-    if (action === 'deactivate' && !window.confirm(`Deactivate ${shop.name}? This will block the shop from using the platform.`)) return
+    if (action === 'deactivate') {
+      setConfirmShop(shop)
+      return
+    }
     setBusyId(String(shop._id))
     setError('')
     setSuccess('')
     try {
       if (action === 'extend') await superAdminExtendShop(token, shop._id)
-      else await superAdminDeactivateShop(token, shop._id)
-      setSuccess(action === 'extend' ? `${shop.name} renewed for 30 days.` : `${shop.name} deactivated.`)
+      else await superAdminSetShopLock(token, shop._id, false)
+      setSuccess(action === 'extend' ? `${shop.name} renewed for 30 days.` : `${shop.name} is active again.`)
       await refresh()
     } catch (requestError) {
       setError(requestError.message || 'Unable to update subscription.')
+    } finally {
+      setBusyId('')
+    }
+  }
+
+  const confirmDeactivate = async () => {
+    if (!confirmShop) return
+    const shop = confirmShop
+    setConfirmShop(null)
+    setBusyId(String(shop._id))
+    setError('')
+    setSuccess('')
+    try {
+      await superAdminDeactivateShop(token, shop._id)
+      setSuccess(`${shop.name} has been blocked and remains in the shop list.`)
+      await refresh()
+    } catch (requestError) {
+      setError(requestError.message || 'Unable to block shop.')
     } finally {
       setBusyId('')
     }
@@ -162,14 +186,17 @@ export default function SuperAdminDashboard() {
 
   if (!token) {
     return (
-      <main className="onboarding-shell">
+      <main className="onboarding-shell onboarding-page">
         <form className="panel onboarding-card" onSubmit={login}>
+          <button className="onboarding-close super-admin-login-close" type="button" aria-label="Close Super Admin login and return to sign in" title="Back to sign in" onClick={() => setRoute('login')}>×</button>
           <span className="eyebrow">Platform owner</span>
           <h1>Super Admin</h1>
           <label>Username<input value={credentials.username} onChange={(event) => setCredentials({ ...credentials, username: event.target.value })} required /></label>
           <label>Password<input type="password" value={credentials.password} onChange={(event) => setCredentials({ ...credentials, password: event.target.value })} required /></label>
-          {error && <small className="form-error" role="alert">{error}</small>}
+          {error && <StatusAlert type="error" message={error} onDismiss={() => setError('')} />}
           <button className="button button-primary" type="submit" disabled={loggingIn}>{loggingIn ? 'Signing in…' : 'Sign in'}</button>
+          <button className="text-button super-admin-login-link" type="button" onClick={() => setRoute('login')}>Staff sign in</button>
+          <button className="text-button super-admin-create-shop" type="button" onClick={() => setRoute('register')}>Create a shop account</button>
         </form>
       </main>
     )
@@ -182,11 +209,11 @@ export default function SuperAdminDashboard() {
         <button className="button button-secondary" type="button" onClick={() => { window.localStorage.removeItem(TOKEN_KEY); setToken('') }}>Sign out</button>
       </header>
       <p className="panel payment-details"><strong>Manual payment verification</strong><span>{PAYMENT_INFO}</span></p>
-      {error && <small className="form-error" role="alert">{error}</small>}
-      {success && <small className="form-success" role="status">{success}</small>}
+      {error && <StatusAlert type="error" message={error} onDismiss={() => setError('')} />}
+      {success && <StatusAlert type="success" message={success} onDismiss={() => setSuccess('')} />}
       <nav className="super-admin-tabs" aria-label="Platform management sections">
         <button className={activeTab === 'activation' ? 'active' : ''} type="button" onClick={() => { setActiveTab('activation'); setError(''); setSuccess('') }}>Pending Approvals <span>{pendingShops.length}</span></button>
-        <button className={activeTab === 'shops' ? 'active' : ''} type="button" onClick={() => { setActiveTab('shops'); setError(''); setSuccess('') }}>Active Shops <span>{activeShops.length}</span></button>
+        <button className={activeTab === 'shops' ? 'active' : ''} type="button" onClick={() => { setActiveTab('shops'); setError(''); setSuccess('') }}>Registered Shops <span>{activeShops.length}</span></button>
         <button className={activeTab === 'payments' ? 'active' : ''} type="button" onClick={() => { setActiveTab('payments'); setError(''); setSuccess('') }}>Payment Requests <span>{payments.length}</span></button>
       </nav>
       {!loaded ? <div className="panel empty-state" role="status"><span className="spinner" /> Loading platform data…</div> : activeTab === 'activation' && <section className="pending-payments-list">
@@ -214,13 +241,17 @@ export default function SuperAdminDashboard() {
               <span className={`status-pill ${locked || expired ? 'maintenance' : 'available'}`}>{locked ? 'Locked' : expired ? 'Expired' : shop.license?.status || 'Active'}</span>
               <span>{expiresAt ? <>{new Date(expiresAt).toLocaleDateString()}<small className="shop-username">{expired ? 'Expired' : `${remainingDays} day${remainingDays === 1 ? '' : 's'} left`}</small></> : '—'}</span>
               <span className="super-admin-actions">
-                <button className="text-button" type="button" disabled={busyId === String(shop._id)} onClick={() => mutateShop(shop, 'extend')}>+ Kordhi 1 Bil / Verify payment</button>
-                <button className="text-button" type="button" disabled={busyId === String(shop._id)} onClick={() => mutateShop(shop, 'deactivate')}>Deactivate / Block</button>
+                {shop.status === 'inactive' || shop.isApproved === false
+                  ? <button className="text-button shop-unblock-button" type="button" disabled={busyId === String(shop._id)} onClick={() => mutateShop(shop, 'activate')}>{busyId === String(shop._id) ? 'Unblocking…' : 'Unblock shop'}</button>
+                  : <>
+                    <button className="text-button" type="button" disabled={busyId === String(shop._id)} onClick={() => mutateShop(shop, 'extend')}>+ Kordhi 1 Bil / Verify payment</button>
+                    <button className="text-button shop-block-button" type="button" disabled={busyId === String(shop._id)} onClick={() => mutateShop(shop, 'deactivate')}>{busyId === String(shop._id) ? 'Blocking…' : 'Deactivate / Block'}</button>
+                  </>}
               </span>
             </div>
           )
         })}
-        {!activeShops.length && <div className="empty-state">No active shops have registered yet.</div>}
+        {!activeShops.length && <div className="empty-state">No registered shops yet.</div>}
       </div>}
       {loaded && activeTab === 'payments' && <section className="pending-payments-list">
         {!payments.length ? <div className="panel empty-state">No pending payment requests.</div> : payments.map((payment) => <article className="panel pending-payment-card" key={payment._id}>
@@ -234,6 +265,29 @@ export default function SuperAdminDashboard() {
           </div>
         </article>)}
       </section>}
+      {confirmShop && <div className="shop-confirm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmShop(null) }}>
+        <section className="shop-confirm-card panel" role="alertdialog" aria-modal="true" aria-labelledby="shop-confirm-title" aria-describedby="shop-confirm-description">
+          <span className="shop-confirm-icon" aria-hidden="true">!</span>
+          <span className="eyebrow">Confirm shop access change</span>
+          <h2 id="shop-confirm-title">Block {confirmShop.name}?</h2>
+          <p id="shop-confirm-description">This shop will lose platform access, but it will remain in the list so you can unblock it later.</p>
+          <div className="shop-confirm-actions">
+            <button className="button button-secondary" type="button" onClick={() => setConfirmShop(null)}>Keep active</button>
+            <button className="button button-danger" type="button" onClick={confirmDeactivate}>Block shop</button>
+          </div>
+        </section>
+      </div>}
     </main>
+  )
+}
+
+function StatusAlert({ type, message, onDismiss }) {
+  const success = type === 'success'
+  return (
+    <div className={`platform-alert platform-alert-${type}`} role={success ? 'status' : 'alert'}>
+      <span className="platform-alert-icon" aria-hidden="true">{success ? '✓' : '!'}</span>
+      <span className="platform-alert-message">{message}</span>
+      <button type="button" className="platform-alert-dismiss" onClick={onDismiss} aria-label="Dismiss notification">×</button>
+    </div>
   )
 }

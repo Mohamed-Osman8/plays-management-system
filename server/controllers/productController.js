@@ -18,11 +18,12 @@ export async function listProducts(_req, res, next) {
 export async function createProduct(req, res, next) {
   try {
     const { name, price, stock, sku, category, cost, active, imageUrl } = req.body
+    const stockQuantity = stock === undefined || stock === null || stock === '' ? 0 : Number(stock)
     if (!String(name || '').trim() || !Number.isFinite(Number(price)) || Number(price) < 0 ||
-      !Number.isInteger(Number(stock)) || Number(stock) < 0) {
-      return res.status(400).json({ message: 'Name, a non-negative price, and a non-negative integer stock are required.' })
+      !Number.isInteger(stockQuantity) || stockQuantity < 0) {
+      return res.status(400).json({ message: 'Name, a non-negative price, and an optional non-negative integer stock are required.' })
     }
-    const product = await Product.create({ name, price: Number(price), stock: Number(stock), sku, category, cost, active, imageUrl })
+    const product = await Product.create({ name, price: Number(price), stock: stockQuantity, sku, category, cost, active, imageUrl })
     return res.status(201).json({ product })
   } catch (error) {
     if (error.code === 11000) return res.status(409).json({ message: 'A product with this SKU already exists.' })
@@ -35,6 +36,7 @@ export async function updateProduct(req, res, next) {
     if (invalidId(req.params.id)) return res.status(400).json({ message: 'Invalid product ID.' })
     const allowed = ['name', 'sku', 'category', 'price', 'cost', 'stock', 'active', 'imageUrl']
     const updates = Object.fromEntries(Object.entries(req.body).filter(([key]) => allowed.includes(key)))
+    if (updates.stock === '') delete updates.stock
     if (!Object.keys(updates).length) return res.status(400).json({ message: 'At least one product field is required.' })
     if (updates.price !== undefined) updates.price = Number(updates.price)
     if (updates.cost !== undefined) updates.cost = Number(updates.cost)

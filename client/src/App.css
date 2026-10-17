@@ -835,6 +835,33 @@ select:focus, input:focus { border-color: var(--lime); }
 }
 .station-available .station-screen::after { background: #2576bf; }
 .public-owner-cta { background: linear-gradient(105deg, #10233a, #142033 55%, #101a28); }
+.platform-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 13px 15px;
+  border: 1px solid;
+  border-radius: 11px;
+  box-shadow: 0 12px 30px #0002;
+  animation: platform-alert-in .2s ease-out;
+}
+.platform-alert-error { border-color: #813d4b; color: #ffdce1; background: linear-gradient(110deg, #3a1922, #24151d); }
+.platform-alert-success { border-color: #26694f; color: #d6ffea; background: linear-gradient(110deg, #123528, #13251f); }
+.platform-alert-icon { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border: 1px solid currentColor; border-radius: 50%; font-size: .82rem; font-weight: 700; }
+.platform-alert-message { flex: 1; font-size: .76rem; line-height: 1.55; }
+.platform-alert-dismiss { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 6px; color: inherit; background: #ffffff0d; font-size: 1.2rem; }
+.platform-alert-dismiss:hover { background: #ffffff1a; }
+.shop-block-button { color: #ff9ba9; }
+.shop-unblock-button { color: #73d9a7; }
+.shop-confirm-backdrop { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 20px; background: #030609c4; backdrop-filter: blur(7px); animation: platform-alert-in .16s ease-out; }
+.shop-confirm-card { width: min(100%, 430px); padding: 27px; border-color: #6d3a46; background: linear-gradient(145deg, #1b1d27, #111720); box-shadow: 0 28px 90px #000b, 0 0 48px #ff70820b; }
+.shop-confirm-icon { display: grid; width: 42px; height: 42px; margin-bottom: 18px; place-items: center; border: 1px solid #8d4855; border-radius: 13px; color: #ff9ba9; background: #58293455; font: 700 1.15rem 'Space Grotesk'; }
+.shop-confirm-card h2 { margin: 8px 0; font: 600 1.35rem 'Space Grotesk'; }
+.shop-confirm-card p { margin: 0; color: var(--muted); font-size: .77rem; line-height: 1.65; }
+.shop-confirm-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 23px; }
+.shop-confirm-actions .button { min-height: 39px; }
+@keyframes platform-alert-in { from { opacity: 0; transform: translateY(5px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
@@ -929,10 +956,17 @@ select:focus, input:focus { border-color: var(--lime); }
 .login-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 28px #0874df4d; }
 .login-submit:disabled { cursor: wait; opacity: .72; }
 .login-submit > span[aria-hidden="true"] { font-size: 1rem; }
+.login-create-shop, .login-platform-link { justify-self: center; padding: 0; border: 0; color: #8496ab; background: transparent; font-size: .68rem; }
+.login-create-shop b, .login-platform-link b { color: #6cbaff; font-weight: 700; }
+.login-create-shop:hover b, .login-platform-link:hover b { color: #b1dbff; text-decoration: underline; }
+.login-platform-link { margin-top: -12px; font-size: .63rem; }
 .login-form-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; color: #748399; font-size: .61rem; }
 .login-secure-indicator { display: inline-flex; align-items: center; gap: 7px; color: #93a4b9; font-size: .55rem; font-weight: 700; letter-spacing: .08em; }
 .login-secure-indicator i { width: 6px; height: 6px; background: #55c994; box-shadow: 0 0 10px #55c99477; }
 .login-copyright { margin-top: 45px; color: #617086; font-size: .55rem; letter-spacing: .1em; }
+.super-admin-login-close { z-index: 1; }
+.super-admin-login-link { margin-top: -5px; }
+.super-admin-create-shop { margin-top: -11px; color: #67b8ff; }
 @media (max-width: 760px) {
   .login-page { padding: 18px; }
   .login-layout { grid-template-columns: 1fr; width: min(100%, 520px); min-height: min(720px, calc(100svh - 36px)); }

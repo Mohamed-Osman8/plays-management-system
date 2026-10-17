@@ -121,6 +121,12 @@ export default function Login() {
             <button className="button button-primary login-submit" type="submit" disabled={busy}>
               {busy ? <><span className="spinner" /> Signing in…</> : <>Sign in <span aria-hidden="true">→</span></>}
             </button>
+            <button className="login-create-shop" type="button" onClick={() => setRoute('register')}>
+              Need an account? <b>Create your shop</b>
+            </button>
+            <button className="login-platform-link" type="button" onClick={() => setRoute('super-admin')}>
+              Platform owner? <b>Super Admin sign in</b>
+            </button>
             <div className="login-form-footer">
               <span className="login-secure-indicator"><i /> SECURE SIGN IN</span>
               <span>Need help? Contact your administrator.</span>

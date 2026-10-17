@@ -6,6 +6,7 @@ import Navbar from './components/Navbar'
 import BrandMark from './components/BrandMark'
 import PwaInstallButton from './components/PwaInstallButton'
 import Login from './pages/Login'
+import Register from './pages/Register'
 import SuperAdminDashboard from './pages/SuperAdminDashboard'
 import SubscriptionPayments from './components/SubscriptionPayments'
 import './App.css'
@@ -285,6 +286,7 @@ function AppShell() {
     }
   }, [lockApp])
 
+  if (route === 'register') return <Register />
   if (route === 'super-admin') return <SuperAdminDashboard />
   if (!authenticated) return <Login />
   if (route === 'login') return <Login />
