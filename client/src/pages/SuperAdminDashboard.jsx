@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../context/useApp'
+import BrandMark from '../components/BrandMark'
 import { superAdminActivateShop, superAdminApprovePayment, superAdminDeactivateShop, superAdminExtendShop, superAdminListActiveShops, superAdminListPendingPayments, superAdminListPendingShops, superAdminLogin, superAdminRejectPayment, superAdminRejectShop, superAdminSetShopLock } from '../services/api'
 import { formatBirr } from '../utils/currency'
 
@@ -187,16 +188,16 @@ export default function SuperAdminDashboard() {
   if (!token) {
     return (
       <main className="onboarding-shell onboarding-page">
-        <form className="panel onboarding-card" onSubmit={login}>
+        <form className="panel onboarding-card super-admin-login-card" onSubmit={login}>
           <button className="onboarding-close super-admin-login-close" type="button" aria-label="Close Super Admin login and return to sign in" title="Back to sign in" onClick={() => setRoute('login')}>×</button>
-          <span className="eyebrow">Platform owner</span>
-          <h1>Super Admin</h1>
-          <label>Username<input value={credentials.username} onChange={(event) => setCredentials({ ...credentials, username: event.target.value })} required /></label>
-          <label>Password<input type="password" value={credentials.password} onChange={(event) => setCredentials({ ...credentials, password: event.target.value })} required /></label>
+          <div className="super-admin-login-brand"><BrandMark /><span className="eyebrow">Platform owner</span></div>
+          <div className="super-admin-login-heading"><h1>Super Admin</h1><p>Sign in to manage shops, licenses, and platform payments.</p></div>
+          <label className="super-admin-login-field">Username<input autoComplete="username" value={credentials.username} onChange={(event) => setCredentials({ ...credentials, username: event.target.value })} placeholder="Enter your username" required disabled={loggingIn} /></label>
+          <label className="super-admin-login-field">Password<input autoComplete="current-password" type="password" value={credentials.password} onChange={(event) => setCredentials({ ...credentials, password: event.target.value })} placeholder="Enter your password" required disabled={loggingIn} /></label>
           {error && <StatusAlert type="error" message={error} onDismiss={() => setError('')} />}
-          <button className="button button-primary" type="submit" disabled={loggingIn}>{loggingIn ? 'Signing in…' : 'Sign in'}</button>
+          <button className="button button-primary super-admin-login-submit" type="submit" disabled={loggingIn}>{loggingIn ? <><span className="spinner" /> Signing in…</> : <>Sign in <span aria-hidden="true">→</span></>}</button>
           <button className="text-button super-admin-login-link" type="button" onClick={() => setRoute('login')}>Staff sign in</button>
-          <button className="text-button super-admin-create-shop" type="button" onClick={() => setRoute('register')}>Create a shop account</button>
+          <span className="super-admin-login-secure"><i /> SECURE PLATFORM ACCESS</span>
         </form>
       </main>
     )
