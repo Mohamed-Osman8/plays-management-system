@@ -6,7 +6,7 @@ import Navbar from './components/Navbar'
 import BrandMark from './components/BrandMark'
 import PwaInstallButton from './components/PwaInstallButton'
 import Login from './pages/Login'
-import SuperAdmin from './pages/SuperAdminDashboard'
+import SuperAdminDashboard from './pages/SuperAdminDashboard'
 import SubscriptionPayments from './components/SubscriptionPayments'
 import './App.css'
 import './theme.css'
@@ -15,6 +15,7 @@ function RouterView() {
   const { route } = useApp()
   const pages = {
     dashboard: Dashboard,
+    'super-admin': SuperAdminDashboard,
   }
   const Page = pages[route] || Dashboard
   return <Page />
@@ -284,9 +285,9 @@ function AppShell() {
     }
   }, [lockApp])
 
+  if (route === 'super-admin') return <SuperAdminDashboard />
   if (!authenticated) return <Login />
   if (route === 'login') return <Login />
-  if (route === 'super-admin') return <SuperAdmin />
   if (route === 'license') return <LicenseNotice onLogout={() => { logout(); setRoute('login') }} onRenewed={() => setRoute('dashboard')} />
   if (locked) {
     return (

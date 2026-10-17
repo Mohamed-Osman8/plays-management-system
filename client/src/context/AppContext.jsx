@@ -194,13 +194,25 @@ export function AppProvider({ children }) {
         if (!token) {
           throw new Error('Login succeeded without an authentication token.')
         }
-        window.localStorage.setItem('playstation-game-zone-token', token)
-        window.localStorage.setItem('token', token)
-        window.localStorage.setItem('authToken', token)
-        const role = String(result.user.role || '').trim().toLowerCase()
+        const role = String(result.user?.role || '').trim().toLowerCase()
+        if (role === 'superadmin') {
+          const user = { ...result.user, role: 'superadmin' }
+          window.localStorage.setItem('game-zone-super-admin-token', token)
+          window.localStorage.setItem('game-zone-super-admin-user', JSON.stringify(user))
+          window.localStorage.removeItem('playstation-game-zone-token')
+          window.localStorage.removeItem('token')
+          window.localStorage.removeItem('authToken')
+          dispatch({ type: 'LOGIN', user: user.username || user.name || username, role: 'SuperAdmin' })
+          return { ok: true, superAdmin: true, user }
+        }
         if (!['admin', 'cashier'].includes(role)) {
           throw new Error('Your account does not have an authorized staff role.')
         }
+        window.localStorage.setItem('playstation-game-zone-token', token)
+        window.localStorage.setItem('token', token)
+        window.localStorage.setItem('authToken', token)
+        window.localStorage.removeItem('game-zone-super-admin-token')
+        window.localStorage.removeItem('game-zone-super-admin-user')
         const appRole = role === 'admin' ? 'Owner/Admin' : 'Cashier/Staff'
         dispatch({ type: 'LOGIN', user: result.user.name, role: appRole })
 
@@ -218,6 +230,8 @@ export function AppProvider({ children }) {
           window.localStorage.removeItem('playstation-game-zone-token')
           window.localStorage.removeItem('token')
           window.localStorage.removeItem('authToken')
+          window.localStorage.removeItem('game-zone-super-admin-token')
+          window.localStorage.removeItem('game-zone-super-admin-user')
           dispatch({ type: 'LOGOUT' })
           return { ok: false, message: 'Your sign-in session could not be verified. Please sign in again.' }
         }
@@ -234,6 +248,8 @@ export function AppProvider({ children }) {
         window.localStorage.removeItem('playstation-game-zone-token')
         window.localStorage.removeItem('token')
         window.localStorage.removeItem('authToken')
+        window.localStorage.removeItem('game-zone-super-admin-token')
+        window.localStorage.removeItem('game-zone-super-admin-user')
         dispatch({ type: 'LOGOUT' })
         if (error.status === 401 || error.status === 429) dispatch({ type: 'LOGIN_FAILED' })
         if (error.lockoutUntil) dispatch({ type: 'LOGIN_LOCKOUT', lockoutUntil: error.lockoutUntil })

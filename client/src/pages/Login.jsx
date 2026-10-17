@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../context/useApp'
 import BrandMark from '../components/BrandMark'
+import { superAdminLogin } from '../services/api'
 
 export default function Login() {
   const { login, setRoute } = useApp()
@@ -17,10 +18,34 @@ export default function Login() {
     try {
       const result = await login(form.username, form.password)
       if (!result.ok) {
-        setError(result.message || 'Unable to sign in.')
-        return
+        try {
+          const superAdminResult = await superAdminLogin({
+            username: form.username.trim(),
+            password: form.password
+          })
+          const token = superAdminResult.token
+          const user = superAdminResult.user || {
+            username: form.username.trim(),
+            role: 'superadmin'
+          }
+          const role = String(user.role || '').trim().toLowerCase()
+          if (!token || role !== 'superadmin') {
+            throw new Error('The account does not have an authorized Super Admin role.')
+          }
+
+          window.localStorage.setItem('game-zone-super-admin-token', token)
+          window.localStorage.setItem('game-zone-super-admin-user', JSON.stringify(user))
+          setRoute('super-admin')
+          return
+        } catch (superAdminError) {
+          setError(result.message || superAdminError.message || 'Unable to sign in.')
+          return
+        }
       }
-      setRoute(result.licenseRequired ? 'license' : 'dashboard')
+      const role = String(result.user?.role || result.role || '').trim().toLowerCase()
+      setRoute(result.superAdmin || role === 'superadmin'
+        ? 'super-admin'
+        : result.licenseRequired ? 'license' : 'dashboard')
     } catch (requestError) {
       setError(requestError.message || 'Unable to sign in. Please try again.')
     } finally {
