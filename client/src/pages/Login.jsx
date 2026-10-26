@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../context/useApp'
 import BrandMark from '../components/BrandMark'
+import { requestPasswordReset, resetPasswordWithOtp } from '../services/api'
 
 export default function Login() {
   const { login, setRoute } = useApp()
@@ -8,6 +9,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
 
   const submit = async (event) => {
     event.preventDefault()
@@ -95,15 +97,15 @@ export default function Login() {
               </span>
             </label>
 
+            <button className="login-forgot-button" type="button" onClick={() => setForgotPasswordOpen(true)}>
+              Forgot Password?
+            </button>
             {error && <small className="login-error" role="alert">{error}</small>}
             <button className="button button-primary login-submit" type="submit" disabled={busy}>
               {busy ? <><span className="spinner" /> Signing in…</> : <>Sign in <span aria-hidden="true">→</span></>}
             </button>
             <button className="login-create-shop" type="button" onClick={() => setRoute('register')}>
               Need an account? <b>Create your shop</b>
-            </button>
-            <button className="login-platform-link" type="button" onClick={() => setRoute('super-admin')}>
-              Platform owner? <b>Super Admin sign in</b>
             </button>
             <div className="login-form-footer">
               <span className="login-secure-indicator"><i /> SECURE SIGN IN</span>
@@ -113,6 +115,89 @@ export default function Login() {
           <span className="login-copyright">© 2026 PLAYSTATION GAME ZONE</span>
         </section>
       </div>
+      {forgotPasswordOpen && <ForgotPasswordModal onClose={() => setForgotPasswordOpen(false)} />}
     </main>
+  )
+}
+
+function ForgotPasswordModal({ onClose }) {
+  const [phone, setPhone] = useState('')
+  const [otp, setOtp] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [step, setStep] = useState('phone')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+
+  const sendCode = async (event) => {
+    event.preventDefault()
+    if (busy) return
+    setBusy(true)
+    setError('')
+    try {
+      const result = await requestPasswordReset(phone.trim())
+      setMessage(result.message || 'If an account exists, a verification code has been sent.')
+      setStep('reset')
+    } catch (requestError) {
+      setError(requestError.message || 'Unable to send a verification code. Please try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const resetPassword = async (event) => {
+    event.preventDefault()
+    if (busy) return
+    setBusy(true)
+    setError('')
+    try {
+      await resetPasswordWithOtp({ phone: phone.trim(), otp, newPassword })
+      setStep('success')
+      setMessage('Password-kaaga waa la beddelay, fadlan ku gal password-ka cusub.')
+    } catch (requestError) {
+      setError(requestError.message || 'Unable to reset your password. Please check the code and try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="forgot-password-overlay" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !busy) onClose()
+    }}>
+      <section className="forgot-password-modal" role="dialog" aria-modal="true" aria-labelledby="forgot-password-title">
+        <button className="forgot-password-close" type="button" onClick={onClose} aria-label="Close password reset">×</button>
+        <span className="eyebrow">ACCOUNT RECOVERY</span>
+        <h2 id="forgot-password-title">{step === 'success' ? 'Password updated' : 'Forgot password?'}</h2>
+        {step === 'phone' && <>
+          <p>Enter the phone number linked to your account. We’ll send a 6-digit verification code.</p>
+          <form className="forgot-password-form" onSubmit={sendCode}>
+            <label>Phone number
+              <input type="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Enter your phone number" maxLength="18" required />
+            </label>
+            {error && <small className="login-error" role="alert">{error}</small>}
+            <button className="button button-primary login-submit" type="submit" disabled={busy}>{busy ? 'Sending code…' : 'Send Verification Code'}</button>
+          </form>
+        </>}
+        {step === 'reset' && <>
+          <p>{message}</p>
+          <form className="forgot-password-form" onSubmit={resetPassword}>
+            <label>6-digit verification code
+              <input inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength="6" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" required />
+            </label>
+            <label>New password
+              <input type="password" autoComplete="new-password" minLength="10" maxLength="128" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="At least 10 characters" required />
+            </label>
+            {error && <small className="login-error" role="alert">{error}</small>}
+            <button className="button button-primary login-submit" type="submit" disabled={busy}>{busy ? 'Resetting password…' : 'Reset Password'}</button>
+          </form>
+          <button className="forgot-password-resend" type="button" onClick={() => { setStep('phone'); setError(''); setMessage('') }}>Resend code or change phone number</button>
+        </>}
+        {step === 'success' && <>
+          <p className="forgot-password-success" role="status">{message}</p>
+          <button className="button button-primary login-submit" type="button" onClick={onClose}>Back to sign in</button>
+        </>}
+      </section>
+    </div>
   )
 }

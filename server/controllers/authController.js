@@ -1,12 +1,70 @@
 import bcrypt from 'bcryptjs'
+import { randomInt } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
 import Shop from '../models/Shop.js'
 
 const LOCKOUT_THRESHOLD = 5
 const LOCKOUT_DURATION_MS = 120000
+const RESET_OTP_TTL_MS = 5 * 60 * 1000
+const RESET_OTP_COOLDOWN_MS = 60 * 1000
+const RESET_OTP_MAX_ATTEMPTS = 5
+const GENERIC_RESET_MESSAGE = 'If an account exists for that phone number or username, a verification code has been sent.'
 const PENDING_SHOP_MESSAGE = 'Akoonkaaga wali ma firfircona. Fadlan kala xiriir maamulka Mohamed Osman (+251940867287) si loo kordhiyo/loo firfircooneeyo.'
 const INACTIVE_SHOP_MESSAGE = 'Akoonka dukaankan lama hawlgelin ama waa la hakiyey. Fadlan kala xiriir Mohamed Osman (+251940867287).'
+
+function normalizeIdentity(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function identityQuery(identity) {
+  const digits = identity.replace(/\D/g, '')
+  const conditions = [{ username: identity }]
+  if (digits.length >= 7 && digits.length <= 18) {
+    const spacedPhonePattern = `^\\+?\\s*${digits.split('').join('\\s*')}\\s*$`
+    conditions.push({ phone: { $regex: spacedPhonePattern } })
+  }
+  return { $or: conditions }
+}
+
+async function sendPasswordResetOtp(user, otp) {
+  const smsApiUrl = process.env.SMS_API_URL
+  const smsApiToken = process.env.SMS_API_TOKEN
+
+  if (!smsApiUrl) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SMS_API_URL must be configured before password reset can be used in production.')
+    }
+    console.info(`[password-reset] Development OTP for ${user.username}: ${otp}`)
+    return
+  }
+
+  const url = new URL(smsApiUrl)
+  if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
+    throw new Error('SMS_API_URL must use HTTPS in production.')
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(smsApiToken ? { Authorization: `Bearer ${smsApiToken}` } : {})
+    },
+    body: JSON.stringify({
+      to: user.phone,
+      message: `Your PLAYA Game Zone password reset code is ${otp}. It expires in 5 minutes.`
+    }),
+    signal: AbortSignal.timeout(10000)
+  })
+  if (!response.ok) throw new Error(`SMS delivery failed with status ${response.status}.`)
+}
+
+function clearResetOtp(user) {
+  user.resetOtp = null
+  user.resetOtpExpires = null
+  user.resetOtpRequestedAt = null
+  user.resetOtpAttempts = 0
+}
 
 function publicUser(user) {
   return {
@@ -16,6 +74,89 @@ function publicUser(user) {
     role: user.role,
     phone: user.phone || '+251940867287',
     shopId: user.shopId ? String(user.shopId) : null
+  }
+}
+
+export async function requestPasswordReset(req, res, next) {
+  try {
+    const identity = normalizeIdentity(req.body?.phone || req.body?.username || req.body?.identifier)
+    if (!identity || identity.length > 50) {
+      return res.status(400).json({ message: 'Enter a valid phone number or username.' })
+    }
+
+    if (process.env.NODE_ENV === 'production' && !process.env.SMS_API_URL) {
+      return res.status(503).json({ message: 'Password reset is temporarily unavailable. Please contact your administrator.' })
+    }
+
+    const user = await User.findOne(identityQuery(identity))
+      .select('+resetOtpRequestedAt')
+    if (!user) return res.json({ message: GENERIC_RESET_MESSAGE })
+
+    const now = Date.now()
+    const lastRequestedAt = user.resetOtpRequestedAt ? new Date(user.resetOtpRequestedAt).getTime() : 0
+    if (lastRequestedAt > now - RESET_OTP_COOLDOWN_MS) {
+      return res.json({ message: GENERIC_RESET_MESSAGE })
+    }
+
+    const otp = String(randomInt(0, 1000000)).padStart(6, '0')
+    user.resetOtp = otp
+    user.resetOtpExpires = new Date(now + RESET_OTP_TTL_MS)
+    user.resetOtpRequestedAt = new Date(now)
+    user.resetOtpAttempts = 0
+    await user.save()
+
+    try {
+      await sendPasswordResetOtp(user, otp)
+    } catch (deliveryError) {
+      console.error('Password reset SMS delivery failed.', deliveryError)
+      clearResetOtp(user)
+      await user.save()
+      return res.status(503).json({ message: 'Unable to send a verification code right now. Please try again later.' })
+    }
+
+    return res.json({ message: GENERIC_RESET_MESSAGE })
+  } catch (error) {
+    return next(error)
+  }
+}
+
+export async function resetPasswordWithOtp(req, res, next) {
+  try {
+    const identity = normalizeIdentity(req.body?.phone || req.body?.username || req.body?.identifier)
+    const otp = String(req.body?.otp || '').trim()
+    const newPassword = String(req.body?.newPassword || '')
+    if (!identity || identity.length > 50 || !/^\d{6}$/.test(otp) || newPassword.length < 10 || newPassword.length > 128) {
+      return res.status(400).json({ message: 'Enter a valid phone number, 6-digit code, and password (10-128 characters).' })
+    }
+
+    const user = await User.findOne(identityQuery(identity))
+      .select('+resetOtp +resetOtpExpires +resetOtpAttempts +passwordHash +pinHash')
+    if (!user || !user.resetOtp || !(user.resetOtpExpires > Date.now())) {
+      if (user?.resetOtp) {
+        clearResetOtp(user)
+        await user.save()
+      }
+      return res.status(400).json({ message: 'Invalid or expired verification code. Request a new code and try again.' })
+    }
+
+    if (String(user.resetOtp) !== String(otp)) {
+      user.resetOtpAttempts = (user.resetOtpAttempts || 0) + 1
+      if (user.resetOtpAttempts >= RESET_OTP_MAX_ATTEMPTS) clearResetOtp(user)
+      await user.save()
+      return res.status(400).json({ message: 'Invalid or expired verification code. Request a new code and try again.' })
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12)
+    user.passwordHash = passwordHash
+    user.pinHash = passwordHash
+    user.loginAttempts = 0
+    user.lockoutUntil = null
+    clearResetOtp(user)
+    await user.save()
+
+    return res.json({ message: 'Password-kaaga waa la beddelay si guul leh. Hadda fadlan ku gal.' })
+  } catch (error) {
+    return next(error)
   }
 }
 

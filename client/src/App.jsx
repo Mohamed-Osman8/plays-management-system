@@ -142,7 +142,7 @@ function PublicPortal() {
           </div>
           <button className="button button-primary public-owner-button" type="button" onClick={() => setRoute('register')}>Create your shop now <span aria-hidden="true">→</span></button>
         </section>
-        <footer className="public-footer"><span>© 2026 PLAYSTATION GAME ZONE <i /> Built by Mohamed Osman · <a href="tel:+251940867287">+251 940 867 287</a></span><span><button className="text-button" type="button" onClick={() => setRoute('super-admin')}>Platform administration</button><i /> Customer booking portal</span></footer>
+        <footer className="public-footer"><span>© 2026 PLAYSTATION GAME ZONE <i /> Built by Mohamed Osman · <a href="tel:+251940867287">+251 940 867 287</a></span><span>Customer booking portal</span></footer>
       </div>
       {showStaffLogin && <StaffLoginModal onClose={() => setShowStaffLogin(false)} />}
     </main>

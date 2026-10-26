@@ -96,6 +96,20 @@ export function staffLogin(credentials) {
   })
 }
 
+export function requestPasswordReset(identifier) {
+  return request('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ phone: identifier })
+  })
+}
+
+export function resetPasswordWithOtp({ phone, otp, newPassword }) {
+  return request('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ phone, otp, newPassword })
+  })
+}
+
 export function getBookings() {
   return request('/bookings')
 }

@@ -12,6 +12,10 @@ const userSchema = new mongoose.Schema(
     shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', index: true },
     passwordHash: { type: String, required: true, select: false },
     pinHash: { type: String, required: true, select: false },
+    resetOtp: { type: String, default: null, select: false },
+    resetOtpExpires: { type: Date, default: null, select: false },
+    resetOtpRequestedAt: { type: Date, default: null, select: false },
+    resetOtpAttempts: { type: Number, default: 0, min: 0, select: false },
     loginAttempts: { type: Number, default: 0, min: 0 },
     lockoutUntil: { type: Date, default: null }
   },
