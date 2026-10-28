@@ -1,13 +1,13 @@
 import mongoose from 'mongoose'
 
-const phonePattern = /^\+?[0-9 ]{7,18}$/
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const pinPattern = /^\d{6}$/
 
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, minlength: 2, maxlength: 100 },
-    username: { type: String, required: true, unique: true, trim: true, lowercase: true, minlength: 3, maxlength: 50 },
-    phone: { type: String, required: true, unique: true, trim: true, match: phonePattern },
+    email: { type: String, required: true, unique: true, sparse: true, trim: true, lowercase: true, maxlength: 254, match: emailPattern },
+    phone: { type: String, trim: true, maxlength: 30, default: '' },
     role: { type: String, enum: ['Admin', 'Cashier'], required: true, default: 'Cashier' },
     shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', index: true },
     passwordHash: { type: String, required: true, select: false },

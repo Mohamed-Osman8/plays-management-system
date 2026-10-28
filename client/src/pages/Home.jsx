@@ -819,7 +819,7 @@ function Settings() {
   const [values, setValues] = useState(pricing)
   const [shopValues, setShopValues] = useState({ name: shop.name, phone: shop.phone, address: shop.address, rates: { ...shop.rates } })
   const [cash, setCash] = useState('')
-  const [userForm, setUserForm] = useState({ name: '', username: '', phone: '', role: 'Cashier', pin: '' })
+  const [userForm, setUserForm] = useState({ name: '', email: '', role: 'Cashier', pin: '' })
   const [userError, setUserError] = useState('')
   const [shopError, setShopError] = useState('')
   const [shopSaved, setShopSaved] = useState(false)
@@ -840,36 +840,93 @@ function Settings() {
   }
   const submitUser = async (event) => {
     event.preventDefault()
-    if (!/^[0-9]{7,18}$/.test(userForm.phone.replace(/\s/g, ''))) return setUserError('Phone must contain numbers only (7-18 digits).')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userForm.email.trim())) return setUserError('Enter a valid email address.')
     if (!/^\d{6}$/.test(userForm.pin)) return setUserError('PIN must contain exactly 6 digits.')
-    if (users.some((managedUser) => managedUser.username === userForm.username)) return setUserError('That username is already in use.')
-    if (users.some((managedUser) => managedUser.phone.replace(/\s/g, '') === userForm.phone.replace(/\s/g, ''))) return setUserError('That phone number is already assigned.')
+    if (users.some((managedUser) => managedUser.email.toLowerCase() === userForm.email.trim().toLowerCase())) return setUserError('That email address is already assigned.')
     try {
-      await addUser(userForm)
-      setUserForm({ name: '', username: '', phone: '', role: 'Cashier', pin: '' })
+      await addUser({ ...userForm, email: userForm.email.trim().toLowerCase() })
+      setUserForm({ name: '', email: '', role: 'Cashier', pin: '' })
       setUserError('')
     } catch (error) {
       setUserError(error.message || 'Unable to create user.')
     }
   }
-  const editUser = (managedUser) => {
+  const editUser = async (managedUser) => {
     const name = window.prompt('Full name', managedUser.name)
-    const username = window.prompt('Username', managedUser.username)?.trim().toLowerCase()
-    const phone = window.prompt('Phone (numbers only)', managedUser.phone)?.replace(/\D/g, '')
+    const email = window.prompt('Email address', managedUser.email)?.trim().toLowerCase()
     const role = window.prompt('Role: Admin or Cashier', managedUser.role)
     const pin = window.prompt('6-digit PIN', managedUser.pin)
-    if (!name || !username || !phone || !/^[0-9]{7,18}$/.test(phone) || !/^(Admin|Cashier)$/.test(role) || !/^\d{6}$/.test(pin)) {
-      setUserError('Edit cancelled or invalid. Phone must be 7-18 digits and PIN exactly 6 digits.')
+    if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^(Admin|Cashier)$/.test(role) || !/^\d{6}$/.test(pin)) {
+      setUserError('Edit cancelled or invalid. Enter a valid email and a 6-digit PIN.')
       return
     }
-    if (users.some((candidate) => candidate.id !== managedUser.id && (candidate.username === username || candidate.phone.replace(/\s/g, '') === phone))) {
-      setUserError('That username or phone number is already assigned.')
+    if (users.some((candidate) => candidate.id !== managedUser.id && candidate.email.toLowerCase() === email)) {
+      setUserError('That email address is already assigned.')
       return
     }
-    updateUser({ ...managedUser, name, username, phone, role, pin, password: pin })
-    setUserError('')
+    try {
+      await updateUser({ ...managedUser, name, email, role, pin, password: pin })
+      setUserError('')
+    } catch (error) {
+      setUserError(error.message || 'Unable to update user.')
+    }
   }
-  return <ModulePage title="Settings & pricing" eyebrow="Owner/Admin controls for your shop identity, receipt details, rates, users, and shift close."><form className="panel shop-settings-form" onSubmit={submitShop}><div className="panel-heading"><div><span className="eyebrow">Business profile</span><h3>Shop settings</h3></div><span className="status-pill available">Admin only</span></div><div className="form-grid"><label>Shop name<input value={shopValues.name} onChange={(event) => setShopValues({ ...shopValues, name: event.target.value })} required /></label><label>Phone<input value={shopValues.phone} onChange={(event) => setShopValues({ ...shopValues, phone: event.target.value })} /></label><label className="wide">Receipt address<textarea value={shopValues.address} onChange={(event) => setShopValues({ ...shopValues, address: event.target.value })} /></label><label>PS4 hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.ps4} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, ps4: event.target.value } })} /></label><label>PS5 hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.ps5} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, ps5: event.target.value } })} /></label><label>VIP hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.vip} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, vip: event.target.value } })} /></label><label>Other hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.other} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, other: event.target.value } })} /></label></div>{shopError && <small className="form-error">{shopError}</small>}{shopSaved && <small className="form-success" role="status">Shop settings saved successfully.</small>}<button className="button button-primary" type="submit">Save business settings</button></form><div className="settings-grid"><StationSettings /><form className="panel settings-card" onSubmit={(event) => { event.preventDefault(); updatePricing(values) }}><span className="eyebrow">Admin only</span><h3>Pricing control</h3><div className="pricing-form"><label>PS4 / minute<input type="number" step="0.01" min="0" value={values.ps4} onChange={(event) => setValues({ ...values, ps4: event.target.value })} /></label><label>PS5 / minute<input type="number" step="0.01" min="0" value={values.ps5} onChange={(event) => setValues({ ...values, ps5: event.target.value })} /></label><label>Other / minute<input type="number" step="0.01" min="0" value={values.other} onChange={(event) => setValues({ ...values, other: event.target.value })} /></label><label>Staff discount max %<input type="number" min="0" max="100" value={values.discountLimit} onChange={(event) => setValues({ ...values, discountLimit: event.target.value })} /></label></div><button className="button button-primary" type="submit">Save pricing</button></form><form className="panel settings-card" onSubmit={(event) => { event.preventDefault(); if (cash !== '') closeShift(cash) }}><span className="eyebrow">Cashier control</span><h3>Close current shift</h3><p>Expected cash: <b>{formatBirr(shift.expectedCash)}</b>{shift.closedAt && ` · Closed at ${shift.closedAt}`}</p><label>Actual physical cash<input type="number" min="0" step="0.01" value={cash} onChange={(event) => setCash(event.target.value)} required /></label><button className="button button-secondary" type="submit">Close shift</button></form></div><div className="user-management panel"><div className="panel-heading"><div><span className="eyebrow">Admin only</span><h3>User management</h3></div><span className="status-pill available">{users.length} users</span></div><form className="user-form" onSubmit={submitUser}><input placeholder="Full name" value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} required /><input placeholder="Username" value={userForm.username} onChange={(event) => setUserForm({ ...userForm, username: event.target.value.toLowerCase().replace(/\s/g, '') })} required /><input inputMode="tel" pattern="[0-9]{7,18}" placeholder="Phone (numbers only)" value={userForm.phone} onChange={(event) => setUserForm({ ...userForm, phone: event.target.value.replace(/\D/g, '') })} required /><select value={userForm.role} onChange={(event) => setUserForm({ ...userForm, role: event.target.value })}><option>Cashier</option><option>Admin</option></select><input inputMode="numeric" pattern="\d{6}" maxLength="6" placeholder="6-digit PIN" value={userForm.pin} onChange={(event) => setUserForm({ ...userForm, pin: event.target.value.replace(/\D/g, '') })} required /><button className="button button-primary" type="submit">Add user</button>{userError && <small className="form-error">{userError}</small>}</form><div className="user-list">{users.map((managedUser) => <div className="user-row" key={managedUser.id}><span className="avatar">{managedUser.name.split(' ').map((name) => name[0]).join('')}</span><span><strong>{managedUser.name}</strong><small>@{managedUser.username} · {managedUser.phone}</small></span>  <span className="status-pill">{managedUser.role}</span>{managedUser.name !== currentUser && <><button className="button button-secondary edit-user-button" type="button" onClick={() => editUser(managedUser)}>Edit</button><button className="button button-danger delete-user-button" type="button" onClick={() => { if (window.confirm(`Delete ${managedUser.name}?`)) deleteUser(managedUser.username) }}>  Delete</button></>}</div>)}</div></div></ModulePage>
+  return <ModulePage title="Settings & pricing" eyebrow="Owner/Admin controls for your shop identity, receipt details, rates, users, and shift close.">
+    <form className="panel shop-settings-form" onSubmit={submitShop}>
+      <div className="panel-heading"><div><span className="eyebrow">Business profile</span><h3>Shop settings</h3></div><span className="status-pill available">Admin only</span></div>
+      <div className="form-grid">
+        <label>Shop name<input value={shopValues.name} onChange={(event) => setShopValues({ ...shopValues, name: event.target.value })} required /></label>
+        <label>Phone<input value={shopValues.phone} onChange={(event) => setShopValues({ ...shopValues, phone: event.target.value })} /></label>
+        <label className="wide">Receipt address<textarea value={shopValues.address} onChange={(event) => setShopValues({ ...shopValues, address: event.target.value })} /></label>
+        <label>PS4 hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.ps4} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, ps4: event.target.value } })} /></label>
+        <label>PS5 hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.ps5} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, ps5: event.target.value } })} /></label>
+        <label>VIP hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.vip} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, vip: event.target.value } })} /></label>
+        <label>Other hourly rate<input type="number" min="0" step="0.01" value={shopValues.rates.other} onChange={(event) => setShopValues({ ...shopValues, rates: { ...shopValues.rates, other: event.target.value } })} /></label>
+      </div>
+      {shopError && <small className="form-error">{shopError}</small>}
+      {shopSaved && <small className="form-success" role="status">Shop settings saved successfully.</small>}
+      <button className="button button-primary" type="submit">Save business settings</button>
+    </form>
+    <div className="settings-grid">
+      <StationSettings />
+      <form className="panel settings-card" onSubmit={(event) => { event.preventDefault(); updatePricing(values) }}>
+        <span className="eyebrow">Admin only</span><h3>Pricing control</h3>
+        <div className="pricing-form">
+          <label>PS4 / minute<input type="number" step="0.01" min="0" value={values.ps4} onChange={(event) => setValues({ ...values, ps4: event.target.value })} /></label>
+          <label>PS5 / minute<input type="number" step="0.01" min="0" value={values.ps5} onChange={(event) => setValues({ ...values, ps5: event.target.value })} /></label>
+          <label>Other / minute<input type="number" step="0.01" min="0" value={values.other} onChange={(event) => setValues({ ...values, other: event.target.value })} /></label>
+          <label>Staff discount max %<input type="number" min="0" max="100" value={values.discountLimit} onChange={(event) => setValues({ ...values, discountLimit: event.target.value })} /></label>
+        </div>
+        <button className="button button-primary" type="submit">Save pricing</button>
+      </form>
+      <form className="panel settings-card" onSubmit={(event) => { event.preventDefault(); if (cash !== '') closeShift(cash) }}>
+        <span className="eyebrow">Cashier control</span><h3>Close current shift</h3>
+        <p>Expected cash: <b>{formatBirr(shift.expectedCash)}</b>{shift.closedAt && ` · Closed at ${shift.closedAt}`}</p>
+        <label>Actual physical cash<input type="number" min="0" step="0.01" value={cash} onChange={(event) => setCash(event.target.value)} required /></label>
+        <button className="button button-secondary" type="submit">Close shift</button>
+      </form>
+    </div>
+    <div className="user-management panel">
+      <div className="panel-heading"><div><span className="eyebrow">Admin only</span><h3>User management</h3></div><span className="status-pill available">{users.length} users</span></div>
+      <form className="user-form" onSubmit={submitUser}>
+        <input placeholder="Full name" value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} required />
+        <input type="email" autoComplete="email" placeholder="Email address" value={userForm.email} onChange={(event) => setUserForm({ ...userForm, email: event.target.value })} required />
+        <select value={userForm.role} onChange={(event) => setUserForm({ ...userForm, role: event.target.value })}><option>Cashier</option><option>Admin</option></select>
+        <input inputMode="numeric" pattern="\d{6}" maxLength="6" placeholder="6-digit PIN" value={userForm.pin} onChange={(event) => setUserForm({ ...userForm, pin: event.target.value.replace(/\D/g, '') })} required />
+        <button className="button button-primary" type="submit">Add user</button>
+        {userError && <small className="form-error">{userError}</small>}
+      </form>
+      <div className="user-list">{users.map((managedUser) => <div className="user-row" key={managedUser.id}>
+        <span className="avatar">{managedUser.name.split(' ').map((name) => name[0]).join('')}</span>
+        <span><strong>{managedUser.name}</strong><small>{managedUser.email}</small></span>
+        <span className="status-pill">{managedUser.role}</span>
+        {managedUser.name !== currentUser && <>
+          <button className="button button-secondary edit-user-button" type="button" onClick={() => editUser(managedUser)}>Edit</button>
+          <button className="button button-danger delete-user-button" type="button" onClick={() => { if (window.confirm(`Delete ${managedUser.name}?`)) deleteUser(managedUser.email) }}>Delete</button>
+        </>}
+      </div>)}</div>
+    </div>
+  </ModulePage>
 }
 
 function POS({ products: initialProducts, addToCart, removeFromCart, cart, setModal }) {

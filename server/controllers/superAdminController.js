@@ -12,20 +12,20 @@ function safeEqual(left, right) {
 }
 
 export async function superAdminLogin(req, res, next) {
-  const username = process.env.SUPER_ADMIN_USERNAME
+  const email = String(process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase()
   const password = process.env.SUPER_ADMIN_PASSWORD
-  if (!username || !password) return res.status(503).json({ message: 'Super admin credentials are not configured.' })
-  if (!safeEqual(req.body?.username || '', username) || !safeEqual(req.body?.password || '', password)) {
+  if (!email || !password) return res.status(503).json({ message: 'Super admin credentials are not configured.' })
+  if (!safeEqual(String(req.body?.email || '').trim().toLowerCase(), email) || !safeEqual(req.body?.password || '', password)) {
     return res.status(401).json({ message: 'Invalid super admin credentials.' })
   }
   try {
     const superAdmin = await SuperAdmin.findOneAndUpdate(
-      { username: username.toLowerCase() },
-      { $setOnInsert: { username } },
+      { email },
+      { $setOnInsert: { email } },
       { new: true, upsert: true, runValidators: true }
     )
     const token = jwt.sign(
-      { sub: String(superAdmin._id), role: 'SuperAdmin', username },
+      { sub: String(superAdmin._id), role: 'SuperAdmin', email },
       process.env.JWT_SECRET,
       { algorithm: 'HS256', expiresIn: '4h' }
     )
@@ -37,7 +37,7 @@ export async function superAdminLogin(req, res, next) {
 
 export async function listShops(_req, res, next) {
   try {
-    const shops = await Shop.find().select('name phone ownerPhone ownerUsername isApproved status approvedAt approvedByUsername approvalNotes license createdAt').sort({ createdAt: -1 }).lean()
+    const shops = await Shop.find().select('name email phone ownerPhone isApproved status approvedAt approvedByEmail approvalNotes license createdAt').sort({ createdAt: -1 }).lean()
     return res.json({ shops })
   } catch (error) {
     return next(error)
@@ -51,7 +51,7 @@ export async function getPendingShops(_req, res, next) {
         { $or: [{ isApproved: false }, { status: 'pending' }] },
         { status: { $nin: ['inactive', 'rejected'] } }
       ]
-    }).select('name phone ownerPhone ownerUsername isApproved status createdAt approvalNotes').sort({ createdAt: 1 }).lean()
+    }).select('name email phone ownerPhone isApproved status createdAt approvalNotes').sort({ createdAt: 1 }).lean()
     return res.json({ shops })
   } catch (error) {
     return next(error)
@@ -62,7 +62,7 @@ export async function getActiveShops(_req, res, next) {
   try {
     const shops = await Shop.find({
       status: { $nin: ['pending', 'rejected'] }
-    }).select('name phone ownerPhone ownerUsername isApproved status approvedAt license createdAt').sort({ createdAt: -1 }).lean()
+    }).select('name email phone ownerPhone isApproved status approvedAt approvedByEmail license createdAt').sort({ createdAt: -1 }).lean()
     return res.json({
       shops: shops.map((shop) => ({
         ...shop,
@@ -88,7 +88,7 @@ export async function activateShop(req, res, next) {
     const update = {
       isApproved: true,
       approvedAt: now,
-      approvedByUsername: String(req.superAdmin?.username || ''),
+      approvedByEmail: String(req.superAdmin?.email || ''),
       'license.status': 'active',
       'license.plan': 'Monthly'
     }
@@ -233,7 +233,7 @@ export async function setShopLock(req, res, next) {
 export async function getAllPendingPayments(_req, res, next) {
   try {
     const payments = await Payment.find({ status: 'pending' })
-      .populate('shop', 'name phone ownerPhone ownerUsername')
+      .populate('shop', 'name email phone ownerPhone')
       .sort({ submittedAt: 1 })
       .lean()
     return res.json({ payments })
@@ -250,7 +250,7 @@ export async function approvePaymentRequest(req, res, next) {
     const approval = {
       status: 'approved',
       approvedAt,
-      approvedByUsername: String(req.superAdmin?.username || '')
+      approvedByEmail: String(req.superAdmin?.email || '')
     }
     if (mongoose.isValidObjectId(req.superAdmin?.sub)) {
       approval.approvedBy = new mongoose.Types.ObjectId(req.superAdmin.sub)

@@ -5,7 +5,7 @@ import { requestPasswordReset, resetPasswordWithOtp } from '../services/api'
 
 export default function Login() {
   const { login, setRoute } = useApp()
-  const [form, setForm] = useState({ username: '', password: '' })
+  const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -17,7 +17,7 @@ export default function Login() {
     setBusy(true)
     setError('')
     try {
-      const result = await login(form.username, form.password)
+      const result = await login(form.email, form.password)
       if (!result.ok) {
         setError(result.message || 'Unable to sign in.')
         return
@@ -66,12 +66,13 @@ export default function Login() {
             <p className="login-form-intro">Sign in to your operations dashboard.</p>
 
             <label className="login-field">
-              <span>Phone number or username</span>
+              <span>Email address</span>
               <input
-                autoComplete="username"
-                value={form.username}
-                onChange={(event) => setForm({ ...form, username: event.target.value })}
-                placeholder="Enter your phone or username"
+                type="email"
+                autoComplete="email"
+                value={form.email}
+                onChange={(event) => setForm({ ...form, email: event.target.value })}
+                placeholder="Enter your email address"
                 required
               />
             </label>
@@ -121,10 +122,10 @@ export default function Login() {
 }
 
 function ForgotPasswordModal({ onClose }) {
-  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
   const [newPassword, setNewPassword] = useState('')
-  const [step, setStep] = useState('phone')
+  const [step, setStep] = useState('email')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -135,7 +136,7 @@ function ForgotPasswordModal({ onClose }) {
     setBusy(true)
     setError('')
     try {
-      const result = await requestPasswordReset(phone.trim())
+      const result = await requestPasswordReset(email)
       setMessage(result.message || 'If an account exists, a verification code has been sent.')
       setStep('reset')
     } catch (requestError) {
@@ -151,7 +152,7 @@ function ForgotPasswordModal({ onClose }) {
     setBusy(true)
     setError('')
     try {
-      await resetPasswordWithOtp({ phone: phone.trim(), otp, newPassword })
+      await resetPasswordWithOtp({ email, otp, newPassword })
       setStep('success')
       setMessage('Password-kaaga waa la beddelay, fadlan ku gal password-ka cusub.')
     } catch (requestError) {
@@ -169,11 +170,11 @@ function ForgotPasswordModal({ onClose }) {
         <button className="forgot-password-close" type="button" onClick={onClose} aria-label="Close password reset">×</button>
         <span className="eyebrow">ACCOUNT RECOVERY</span>
         <h2 id="forgot-password-title">{step === 'success' ? 'Password updated' : 'Forgot password?'}</h2>
-        {step === 'phone' && <>
-          <p>Enter the phone number linked to your account. We’ll send a 6-digit verification code.</p>
+        {step === 'email' && <>
+          <p>Enter the email address linked to your account. We’ll send a 6-digit verification code.</p>
           <form className="forgot-password-form" onSubmit={sendCode}>
-            <label>Phone number
-              <input type="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Enter your phone number" maxLength="18" required />
+            <label>Email address
+              <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Enter your email address" maxLength="254" required />
             </label>
             {error && <small className="login-error" role="alert">{error}</small>}
             <button className="button button-primary login-submit" type="submit" disabled={busy}>{busy ? 'Sending code…' : 'Send Verification Code'}</button>
@@ -191,7 +192,7 @@ function ForgotPasswordModal({ onClose }) {
             {error && <small className="login-error" role="alert">{error}</small>}
             <button className="button button-primary login-submit" type="submit" disabled={busy}>{busy ? 'Resetting password…' : 'Reset Password'}</button>
           </form>
-          <button className="forgot-password-resend" type="button" onClick={() => { setStep('phone'); setError(''); setMessage('') }}>Resend code or change phone number</button>
+          <button className="forgot-password-resend" type="button" onClick={() => { setStep('email'); setError(''); setMessage('') }}>Resend code or change email address</button>
         </>}
         {step === 'success' && <>
           <p className="forgot-password-success" role="status">{message}</p>

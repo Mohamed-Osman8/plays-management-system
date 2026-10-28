@@ -11,11 +11,13 @@ React/Vite client for the PlayStation store management SaaS.
 ## Shop onboarding and demo
 
 - **Try Demo Mode Instantly** opens an interactive dashboard with sample-only data. Demo actions are held in browser memory and never write to MongoDB.
-- Shop registration creates a shop and owner account. Registration accepts a shop name, phone number and password; the phone number can also be used to sign in.
+- Shop registration creates a shop and owner account using an email address as the sign-in identity. Phone numbers remain separate contact details for bookings and shop operations.
 - The API assigns a free trial. The platform owner reviews manual Telebirr/CBE payments in `#super-admin` and can approve them by extending a shop's license by 30 days.
 - Operational documents include a `shopId`. The API scopes tenant queries, aggregation pipelines and bulk inserts to the authenticated shop. Station names and product SKUs can be reused by different shops.
 
-Set `SUPER_ADMIN_USERNAME` and `SUPER_ADMIN_PASSWORD` in the server environment before using the platform administration screen. Keep those credentials private and use HTTPS in production.
+Set `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` in the server environment before using the platform administration screen. Configure `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, and `EMAIL_PASS` to deliver password-reset codes. Keep credentials private and use HTTPS in production.
+
+Before deploying the email identity change to an existing database, run `npm run migrate:email-identities` from `server` to remove obsolete phone/username uniqueness indexes. Existing user accounts must be assigned unique email addresses before they can sign in; the migration does not infer email addresses from phone numbers.
 
 ## PWA
 

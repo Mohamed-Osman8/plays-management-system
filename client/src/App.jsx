@@ -151,7 +151,7 @@ function PublicPortal() {
 
 function StaffLoginModal({ onClose }) {
   const { login, lockoutUntil, setRoute } = useApp()
-  const [form, setForm] = useState({ username: '', password: '' })
+  const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [remaining, setRemaining] = useState(0)
   const [loggingIn, setLoggingIn] = useState(false)
@@ -169,9 +169,9 @@ function StaffLoginModal({ onClose }) {
     setError('')
     setLoggingIn(true)
     try {
-      const result = await login(form.username.trim(), form.password)
+      const result = await login(form.email.trim(), form.password)
       if (!result.ok) {
-        setError(result.remainingSeconds ? `Account locked for ${result.remainingSeconds} seconds.` : (result.message || 'Invalid PIN or username.'))
+        setError(result.remainingSeconds ? `Account locked for ${result.remainingSeconds} seconds.` : (result.message || 'Invalid email or PIN.'))
         return
       }
       setRoute(result.licenseRequired ? 'license' : 'dashboard')
@@ -180,12 +180,12 @@ function StaffLoginModal({ onClose }) {
     }
   }
 
-  return <div className="staff-login-overlay" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><form className="lock-card staff-login-modal" onSubmit={submit}><button className="modal-close staff-login-close" type="button" onClick={onClose} aria-label="Close staff login">×</button><BrandMark /><span className="eyebrow">Secure staff access</span><h1>Staff<br /><span>Portal</span></h1><p>Sign in to your game zone operations center.</p><label className="login-label">Admin phone or username<input autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} placeholder="Enter your phone or username" required /></label><label className="login-label">Password or 6-digit PIN<input type="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="Enter your password or PIN" required /></label>{remaining > 0 && <small className="form-error">Locked out for {remaining} seconds.</small>}{error && <small className="form-error" role="alert">{error}</small>}<button className="button button-primary" type="submit" disabled={remaining > 0 || loggingIn}>{loggingIn ? <><span className="spinner" /> Signing in...</> : 'Sign in'}</button><small className="login-hint">If you cannot sign in, contact your administrator.</small></form></div>
+  return <div className="staff-login-overlay" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><form className="lock-card staff-login-modal" onSubmit={submit}><button className="modal-close staff-login-close" type="button" onClick={onClose} aria-label="Close staff login">×</button><BrandMark /><span className="eyebrow">Secure staff access</span><h1>Staff<br /><span>Portal</span></h1><p>Sign in to your game zone operations center.</p><label className="login-label">Email address<input type="email" autoComplete="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="Enter your email address" required /></label><label className="login-label">Password or 6-digit PIN<input type="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="Enter your password or PIN" required /></label>{remaining > 0 && <small className="form-error">Locked out for {remaining} seconds.</small>}{error && <small className="form-error" role="alert">{error}</small>}<button className="button button-primary" type="submit" disabled={remaining > 0 || loggingIn}>{loggingIn ? <><span className="spinner" /> Signing in...</> : 'Sign in'}</button><small className="login-hint">If you cannot sign in, contact your administrator.</small></form></div>
 }
 
 function LoginScreen() {
   const { login, lockoutUntil, setRoute } = useApp()
-  const [form, setForm] = useState({ username: '', password: '' })
+  const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [remaining, setRemaining] = useState(0)
   const [loggingIn, setLoggingIn] = useState(false)
@@ -199,9 +199,9 @@ function LoginScreen() {
     event.preventDefault()
     setLoggingIn(true)
     try {
-      const result = await login(form.username.trim(), form.password)
+      const result = await login(form.email.trim(), form.password)
       if (!result.ok) {
-        setError(result.remainingSeconds ? `Account locked for ${result.remainingSeconds} seconds.` : (result.message || 'Invalid PIN or username.'))
+        setError(result.remainingSeconds ? `Account locked for ${result.remainingSeconds} seconds.` : (result.message || 'Invalid email or PIN.'))
       } else {
         setRoute(result.licenseRequired ? 'license' : 'dashboard')
       }
@@ -217,8 +217,8 @@ function LoginScreen() {
         <h1>PlayStation<br /><span>Game Zone</span></h1>
         <p>Sign in to the local operations center.</p>
         <label className="login-label">
-          Admin phone or username
-          <input autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} placeholder="Enter your phone or username" required />
+          Email address
+          <input type="email" autoComplete="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="Enter your email address" required />
         </label>
         <label className="login-label">
           Password or 6-digit PIN

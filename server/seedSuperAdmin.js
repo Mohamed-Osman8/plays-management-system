@@ -1,49 +1,26 @@
-require('dotenv').config();
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+import 'dotenv/config'
+import mongoose from 'mongoose'
+import SuperAdmin from './models/SuperAdmin.js'
 
-// User Schema
-const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ['superadmin', 'admin', 'cashier'], default: 'superadmin' },
-  isApproved: { type: Boolean, default: true }
-});
+async function seedSuperAdmin() {
+  const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI
+  const email = String(process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase()
+  if (!mongoUri || !email) throw new Error('MONGODB_URI and SUPER_ADMIN_EMAIL must be configured.')
 
-const User = mongoose.models.User || mongoose.model('User', userSchema);
-
-const seedSuperAdmin = async () => {
   try {
-    // 1. Connect to MongoDB Atlas
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log("✅ MongoDB Atlas ku xirantay!");
-
-    // 2. Hash Password from .env
-    const hashedPassword = await bcrypt.hash(process.env.SUPER_ADMIN_PASSWORD, 10);
-
-    // 3. Create or Update Super-Admin
-    const superAdmin = await User.findOneAndUpdate(
-      { role: 'superadmin' },
-      {
-        username: process.env.SUPER_ADMIN_USERNAME,
-        password: hashedPassword,
-        role: 'superadmin',
-        isApproved: true
-      },
-      { upsert: true, new: true }
-    );
-
-    console.log("----------------------------------------");
-    console.log("🎉 Akoonka Super-Admin-ka Waa Diyaar!");
-    console.log(`👤 Username: ${superAdmin.username}`);
-    console.log(`🔑 Password: ${process.env.SUPER_ADMIN_PASSWORD}`);
-    console.log("----------------------------------------");
-
-    process.exit(0);
-  } catch (error) {
-    console.error("❌ Error Seed SuperAdmin:", error);
-    process.exit(1);
+    await mongoose.connect(mongoUri)
+    const superAdmin = await SuperAdmin.findOneAndUpdate(
+      { email },
+      { $setOnInsert: { email } },
+      { upsert: true, new: true, runValidators: true }
+    )
+    console.log(`Super admin ready: ${superAdmin.email}`)
+  } finally {
+    await mongoose.disconnect()
   }
-};
+}
 
-seedSuperAdmin();
+seedSuperAdmin().catch((error) => {
+  console.error('Super admin seed failed:', error.message)
+  process.exitCode = 1
+})

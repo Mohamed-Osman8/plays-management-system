@@ -8,7 +8,7 @@ const defaultShop = {
 
 export async function getShopSettings(_req, res, next) {
   try {
-    const filter = _req.user?.shopId ? { _id: _req.user.shopId } : { ownerUsername: { $exists: false } }
+    const filter = _req.user?.shopId ? { _id: _req.user.shopId } : { email: { $exists: false } }
     const shop = await Shop.findOneAndUpdate(
       filter,
       { $setOnInsert: defaultShop },
@@ -36,7 +36,7 @@ export async function updateShopSettings(req, res, next) {
         }
       }
     }
-    const filter = req.user?.shopId ? { _id: req.user.shopId } : { ownerUsername: { $exists: false } }
+    const filter = req.user?.shopId ? { _id: req.user.shopId } : { email: { $exists: false } }
     const shop = await Shop.findOneAndUpdate(
       filter,
       { $set: updates },

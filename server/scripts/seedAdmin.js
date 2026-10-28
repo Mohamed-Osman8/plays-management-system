@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import mongoose from 'mongoose'
 import User from '../models/User.js'
 
-function normalizeUsername(value) {
+function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase()
 }
 
@@ -17,13 +17,13 @@ async function seedAdmin() {
     throw new Error('MONGODB_URI or MONGO_URI is not configured.')
   }
 
-  const username = normalizeUsername(process.env.ADMIN_USERNAME)
+  const email = normalizeEmail(process.env.ADMIN_EMAIL)
   const password = String(process.env.ADMIN_PASSWORD || '')
   const pin = String(process.env.ADMIN_PIN || '')
   const phone = String(process.env.ADMIN_PHONE || '')
 
-  if (!username || !password || !pin || !phone) {
-    throw new Error('ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_PIN, and ADMIN_PHONE must be configured.')
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !password || !pin || !phone) {
+    throw new Error('ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_PIN, and ADMIN_PHONE must be configured.')
   }
 
   if (!isValidPin(pin)) {
@@ -41,10 +41,10 @@ async function seedAdmin() {
     const passwordHash = await bcrypt.hash(password, 12)
     const pinHash = await bcrypt.hash(pin, 12)
     const user = await User.findOneAndUpdate(
-      { username },
+      { email },
       {
         name: 'Mohamed Osman',
-        username,
+        email,
         phone,
         role: 'Admin',
         passwordHash,
@@ -54,7 +54,7 @@ async function seedAdmin() {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     )
-    console.log(`Updated staff admin ready: ${user.username} (Role: ${user.role})`)
+    console.log(`Updated staff admin ready: ${user.email} (Role: ${user.role})`)
   } finally {
     await mongoose.disconnect()
   }

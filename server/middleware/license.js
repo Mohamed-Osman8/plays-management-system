@@ -5,7 +5,7 @@ export async function verifyLicense(req, res, next) {
   try {
     const shop = req.user?.shopId
       ? await Shop.findById(req.user.shopId).lean()
-      : await Shop.findOne({ ownerUsername: { $exists: false } }).lean()
+      : await Shop.findOne({ email: { $exists: false } }).lean()
     if (req.user?.shopId && !shop) {
       return res.status(403).json({ message: 'This account is not linked to an active shop.' })
     }

@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { randomInt } from 'node:crypto'
 import jwt from 'jsonwebtoken'
+import nodemailer from 'nodemailer'
 import User from '../models/User.js'
 import Shop from '../models/Shop.js'
 
@@ -9,54 +10,43 @@ const LOCKOUT_DURATION_MS = 120000
 const RESET_OTP_TTL_MS = 5 * 60 * 1000
 const RESET_OTP_COOLDOWN_MS = 60 * 1000
 const RESET_OTP_MAX_ATTEMPTS = 5
-const GENERIC_RESET_MESSAGE = 'If an account exists for that phone number or username, a verification code has been sent.'
+const GENERIC_RESET_MESSAGE = 'If an account exists for that email address, a verification code has been sent.'
 const PENDING_SHOP_MESSAGE = 'Akoonkaaga wali ma firfircona. Fadlan kala xiriir maamulka Mohamed Osman (+251940867287) si loo kordhiyo/loo firfircooneeyo.'
 const INACTIVE_SHOP_MESSAGE = 'Akoonka dukaankan lama hawlgelin ama waa la hakiyey. Fadlan kala xiriir Mohamed Osman (+251940867287).'
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function normalizeIdentity(value) {
   return String(value || '').trim().toLowerCase()
 }
 
-function identityQuery(identity) {
-  const digits = identity.replace(/\D/g, '')
-  const conditions = [{ username: identity }]
-  if (digits.length >= 7 && digits.length <= 18) {
-    const spacedPhonePattern = `^\\+?\\s*${digits.split('').join('\\s*')}\\s*$`
-    conditions.push({ phone: { $regex: spacedPhonePattern } })
-  }
-  return { $or: conditions }
-}
-
 async function sendPasswordResetOtp(user, otp) {
-  const smsApiUrl = process.env.SMS_API_URL
-  const smsApiToken = process.env.SMS_API_TOKEN
-
-  if (!smsApiUrl) {
+  const host = process.env.EMAIL_HOST
+  const userName = process.env.EMAIL_USER
+  const password = process.env.EMAIL_PASS
+  if (!host || !userName || !password) {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('SMS_API_URL must be configured before password reset can be used in production.')
+      throw new Error('EMAIL_HOST, EMAIL_USER, and EMAIL_PASS must be configured before password reset can be used in production.')
     }
-    console.info(`[password-reset] Development OTP for ${user.username}: ${otp}`)
+    console.info(`[password-reset] Development OTP for ${user.email}: ${otp}`)
     return
   }
 
-  const url = new URL(smsApiUrl)
-  if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
-    throw new Error('SMS_API_URL must use HTTPS in production.')
-  }
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(smsApiToken ? { Authorization: `Bearer ${smsApiToken}` } : {})
-    },
-    body: JSON.stringify({
-      to: user.phone,
-      message: `Your PLAYA Game Zone password reset code is ${otp}. It expires in 5 minutes.`
-    }),
-    signal: AbortSignal.timeout(10000)
+  const port = Number(process.env.EMAIL_PORT || 587)
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user: userName, pass: password },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000
   })
-  if (!response.ok) throw new Error(`SMS delivery failed with status ${response.status}.`)
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM || userName,
+    to: user.email,
+    subject: 'PLAYA Game Zone password reset code',
+    text: `Your PLAYA Game Zone password reset code is ${otp}. It expires in 5 minutes.`
+  })
 }
 
 function clearResetOtp(user) {
@@ -70,8 +60,8 @@ function publicUser(user) {
   return {
     id: user._id ? String(user._id) : 'superadmin-id',
     name: user.name || 'Mohamed Osman (Super-Admin)',
-    username: user.username,
     role: user.role,
+    email: user.email,
     phone: user.phone || '+251940867287',
     shopId: user.shopId ? String(user.shopId) : null
   }
@@ -79,17 +69,16 @@ function publicUser(user) {
 
 export async function requestPasswordReset(req, res, next) {
   try {
-    const identity = normalizeIdentity(req.body?.phone || req.body?.username || req.body?.identifier)
-    if (!identity || identity.length > 50) {
-      return res.status(400).json({ message: 'Enter a valid phone number or username.' })
+    const email = normalizeIdentity(req.body?.email)
+    if (email.length > 254 || !EMAIL_PATTERN.test(email)) {
+      return res.status(400).json({ message: 'Enter a valid email address.' })
     }
 
-    if (process.env.NODE_ENV === 'production' && !process.env.SMS_API_URL) {
+    if (process.env.NODE_ENV === 'production' && (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS)) {
       return res.status(503).json({ message: 'Password reset is temporarily unavailable. Please contact your administrator.' })
     }
 
-    const user = await User.findOne(identityQuery(identity))
-      .select('+resetOtpRequestedAt')
+    const user = await User.findOne({ email }).select('+resetOtpRequestedAt')
     if (!user) return res.json({ message: GENERIC_RESET_MESSAGE })
 
     const now = Date.now()
@@ -108,7 +97,7 @@ export async function requestPasswordReset(req, res, next) {
     try {
       await sendPasswordResetOtp(user, otp)
     } catch (deliveryError) {
-      console.error('Password reset SMS delivery failed.', deliveryError)
+      console.error('Password reset email delivery failed.', deliveryError)
       clearResetOtp(user)
       await user.save()
       return res.status(503).json({ message: 'Unable to send a verification code right now. Please try again later.' })
@@ -122,15 +111,14 @@ export async function requestPasswordReset(req, res, next) {
 
 export async function resetPasswordWithOtp(req, res, next) {
   try {
-    const identity = normalizeIdentity(req.body?.phone || req.body?.username || req.body?.identifier)
+    const email = normalizeIdentity(req.body?.email)
     const otp = String(req.body?.otp || '').trim()
     const newPassword = String(req.body?.newPassword || '')
-    if (!identity || identity.length > 50 || !/^\d{6}$/.test(otp) || newPassword.length < 10 || newPassword.length > 128) {
-      return res.status(400).json({ message: 'Enter a valid phone number, 6-digit code, and password (10-128 characters).' })
+    if (email.length > 254 || !EMAIL_PATTERN.test(email) || !/^\d{6}$/.test(otp) || newPassword.length < 10 || newPassword.length > 128) {
+      return res.status(400).json({ message: 'Enter a valid email address, 6-digit code, and password (10-128 characters).' })
     }
 
-    const user = await User.findOne(identityQuery(identity))
-      .select('+resetOtp +resetOtpExpires +resetOtpAttempts +passwordHash +pinHash')
+    const user = await User.findOne({ email }).select('+resetOtp +resetOtpExpires +resetOtpAttempts +passwordHash +pinHash')
     if (!user || !user.resetOtp || !(user.resetOtpExpires > Date.now())) {
       if (user?.resetOtp) {
         clearResetOtp(user)
@@ -164,31 +152,25 @@ export async function registerShop(req, res, next) {
   let shop
   try {
     const name = String(req.body?.storeName || '').trim()
-    const phone = String(req.body?.phone || '').trim()
-    const usernameInput = String(req.body?.username || '').trim().toLowerCase()
+    const email = normalizeIdentity(req.body?.email)
     const password = String(req.body?.password || '')
-    const username = usernameInput || phone.replace(/\D/g, '')
-    if (!name || name.length > 120 || !/^\+?[0-9 ]{7,18}$/.test(phone) ||
-      !/^[a-z0-9._-]{3,50}$/.test(username) || password.length < 10 || password.length > 128) {
-      return res.status(400).json({ message: 'Enter a store name, valid phone number, and password (10-128 characters).' })
+    if (!name || name.length > 120 || email.length > 254 || !EMAIL_PATTERN.test(email) || password.length < 10 || password.length > 128) {
+      return res.status(400).json({ message: 'Enter a store name, valid email address, and password (10-128 characters).' })
     }
-    if (await User.exists({ $or: [{ username }, { phone }] })) {
-      return res.status(409).json({ message: 'That username or phone number is already registered.' })
+    if (await User.exists({ email })) {
+      return res.status(409).json({ message: 'That email address is already registered.' })
     }
     const passwordHash = await bcrypt.hash(password, 12)
     shop = await Shop.create({
       name,
-      phone,
-      ownerPhone: phone,
-      ownerUsername: username,
+      email,
       isApproved: false,
       status: 'pending',
       license: { status: 'locked', plan: 'Pending approval', expiresAt: null }
     })
     const user = await User.create({
       name,
-      username,
-      phone,
+      email,
       role: 'Admin',
       shopId: shop._id,
       passwordHash,
@@ -201,7 +183,7 @@ export async function registerShop(req, res, next) {
     })
   } catch (error) {
     if (shop?._id) await Shop.deleteOne({ _id: shop._id }).catch(() => {})
-    if (error.code === 11000) return res.status(409).json({ message: 'That username or phone number is already registered.' })
+    if (error.code === 11000) return res.status(409).json({ message: 'That email address is already registered.' })
     return next(error)
   }
 }
@@ -215,13 +197,12 @@ function getCredential(body = {}) {
 
 export async function login(req, res, next) {
   try {
-    const identity = String(req.body?.username || req.body?.phone || '').trim().toLowerCase()
-    const normalizedPhone = identity.replace(/\D/g, '')
+    const identity = normalizeIdentity(req.body?.email || req.body?.username)
     const credential = getCredential(req.body).trim()
 
     if (!identity || !credential) {
       return res.status(400).json({
-        message: 'Phone number or username and password or 6-digit PIN are required.'
+        message: 'Email address and password or 6-digit PIN are required.'
       })
     }
 
@@ -229,15 +210,16 @@ export async function login(req, res, next) {
       return next(new Error('JWT_SECRET is not configured.'))
     }
 
-    // ⚡ 1. SUPER-ADMIN BYPASS (Env Variables Check)
-    const envSuperAdminUsername = (process.env.SUPER_ADMIN_USERNAME || 'mohamed').toLowerCase()
+    // ⚡ SUPER-ADMIN BYPASS (Hubinta Email-ka iyo Password-ka .env)
+    const envSuperAdminEmail = (process.env.SUPER_ADMIN_EMAIL || process.env.SUPER_ADMIN_USERNAME || 'mohamed094osman@gmail.com').toLowerCase()
     const envSuperAdminPassword = process.env.SUPER_ADMIN_PASSWORD || 'mohamed12345'
 
-    if (identity === envSuperAdminUsername && credential === envSuperAdminPassword) {
+    if (identity === envSuperAdminEmail && credential === envSuperAdminPassword) {
       const superAdminUser = {
         _id: 'superadmin_static_id',
         name: 'Mohamed Osman (Super-Admin)',
-        username: envSuperAdminUsername,
+        email: envSuperAdminEmail,
+        username: envSuperAdminEmail,
         role: 'superadmin',
         phone: '+251940867287',
         shopId: null
@@ -247,7 +229,7 @@ export async function login(req, res, next) {
         {
           sub: superAdminUser._id,
           role: 'superadmin',
-          username: superAdminUser.username,
+          email: superAdminUser.email,
           shopId: null
         },
         process.env.JWT_SECRET,
@@ -261,27 +243,10 @@ export async function login(req, res, next) {
       })
     }
 
-    // ⚡ 2. DUKAAMADA CAADIGA AH (Database Check)
-    const identityQuery = [{ username: identity }]
-    if (normalizedPhone) {
-      identityQuery.push({ username: normalizedPhone }, { phone: identity }, { phone: normalizedPhone })
-    }
-    const user = await User.findOne({ $or: identityQuery }).select('+passwordHash +pinHash')
+    // ⚡ DUKAAMADA CAADIGA AH (Database Search by Email / Username)
+    const user = await User.findOne({ $or: [{ email: identity }, { username: identity }] }).select('+passwordHash +pinHash')
     if (!user) {
-      return res.status(401).json({ message: 'Invalid username or password.' })
-    }
-
-    // Super-admin ku jira Database-ka
-    if (user.role && user.role.toLowerCase() === 'superadmin') {
-      const passwordMatches = user.passwordHash ? await bcrypt.compare(credential, user.passwordHash) : false
-      if (passwordMatches) {
-        const token = jwt.sign(
-          { sub: String(user._id), role: 'superadmin', username: user.username, shopId: null },
-          process.env.JWT_SECRET,
-          { algorithm: 'HS256', expiresIn: '12h' }
-        )
-        return res.json({ token, accessToken: token, user: publicUser(user) })
-      }
+      return res.status(401).json({ message: 'Invalid email address or password.' })
     }
 
     const now = Date.now()
@@ -322,7 +287,7 @@ export async function login(req, res, next) {
       }
 
       return res.status(401).json({
-        message: 'Invalid username or password.',
+        message: 'Invalid email address or password.',
         attemptsRemaining: LOCKOUT_THRESHOLD - user.loginAttempts
       })
     }
@@ -348,7 +313,7 @@ export async function login(req, res, next) {
       {
         sub: String(user._id),
         role: user.role,
-        username: user.username,
+        email: user.email,
         shopId: user.shopId ? String(user.shopId) : null
       },
       process.env.JWT_SECRET,

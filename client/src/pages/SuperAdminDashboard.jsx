@@ -10,7 +10,7 @@ const PAYMENT_INFO = 'CBE Bank: 1000278200427 · Telebirr: 0940867287 · E-Birr:
 export default function SuperAdminDashboard() {
   const { setRoute } = useApp()
   const [token, setToken] = useState(() => window.localStorage.getItem(TOKEN_KEY) || '')
-  const [credentials, setCredentials] = useState({ username: '', password: '' })
+  const [credentials, setCredentials] = useState({ email: '', password: '' })
   const [activeShops, setActiveShops] = useState([])
   const [pendingShops, setPendingShops] = useState([])
   const [payments, setPayments] = useState([])
@@ -196,7 +196,7 @@ export default function SuperAdminDashboard() {
           <button className="onboarding-close super-admin-login-close" type="button" aria-label="Close Super Admin login and return to sign in" title="Back to sign in" onClick={() => setRoute('login')}>×</button>
           <div className="super-admin-login-brand"><BrandMark /><span className="eyebrow">Platform owner</span></div>
           <div className="super-admin-login-heading"><h1>Super Admin</h1><p>Sign in to manage shops, licenses, and platform payments.</p></div>
-          <label className="super-admin-login-field">Username<input autoComplete="username" value={credentials.username} onChange={(event) => setCredentials({ ...credentials, username: event.target.value })} placeholder="Enter your username" required disabled={loggingIn} /></label>
+          <label className="super-admin-login-field">Email address<input type="email" autoComplete="email" value={credentials.email} onChange={(event) => setCredentials({ ...credentials, email: event.target.value })} placeholder="Enter your email address" required disabled={loggingIn} /></label>
           <label className="super-admin-login-field">Password<input autoComplete="current-password" type="password" value={credentials.password} onChange={(event) => setCredentials({ ...credentials, password: event.target.value })} placeholder="Enter your password" required disabled={loggingIn} /></label>
           {error && <StatusAlert type="error" message={error} onDismiss={() => setError('')} />}
           <button className="button button-primary super-admin-login-submit" type="submit" disabled={loggingIn}>{loggingIn ? <><span className="spinner" /> Signing in…</> : <>Sign in <span aria-hidden="true">→</span></>}</button>
@@ -223,7 +223,7 @@ export default function SuperAdminDashboard() {
       </nav>
       {!loaded ? <div className="panel empty-state" role="status"><span className="spinner" /> Loading platform data…</div> : activeTab === 'activation' && <section className="pending-payments-list">
         {!pendingShops.length ? <div className="panel empty-state">No shops are waiting for approval.</div> : pendingShops.map((shop) => <article className="panel pending-payment-card pending-activation-card" key={shop._id}>
-          <div className="pending-payment-shop"><span className="eyebrow">Pending shop</span><h2>{shop.name}</h2><span>{shop.ownerPhone || shop.phone || 'No phone provided'} · @{shop.ownerUsername}</span></div>
+          <div className="pending-payment-shop"><span className="eyebrow">Pending shop</span><h2>{shop.name}</h2><span>{shop.email || shop.ownerPhone || shop.phone || 'No contact provided'}</span></div>
           <div className="pending-payment-detail"><small>Registered</small><strong>{shop.createdAt ? new Date(shop.createdAt).toLocaleString() : '—'}</strong></div>
           <div className="pending-payment-detail"><small>Activation payment</small><strong>3,000 ETB · 30 days</strong><span>Verify receipt before activating</span></div>
           <div className="pending-payment-actions">
@@ -233,7 +233,7 @@ export default function SuperAdminDashboard() {
         </article>)}
       </section>}
       {loaded && activeTab === 'shops' && <div className="table-panel super-admin-table">
-        <div className="table-header"><span>Shop</span><span>Phone / username</span><span>License</span><span>Expires / days left</span><span>Actions</span></div>
+        <div className="table-header"><span>Shop</span><span>Email address</span><span>License</span><span>Expires / days left</span><span>Actions</span></div>
         {activeShops.map((shop) => {
           const expiresAt = shop.licenseExpiresAt || shop.license?.expiresAt
           const remainingDays = shop.remainingDays ?? null
@@ -242,7 +242,7 @@ export default function SuperAdminDashboard() {
           return (
             <div className="table-row" key={shop._id}>
               <strong>{shop.name}</strong>
-              <span>{shop.ownerPhone || shop.phone}<small className="shop-username">@{shop.ownerUsername}</small></span>
+              <span>{shop.email || shop.ownerPhone || shop.phone}</span>
               <span className={`status-pill ${locked || expired ? 'maintenance' : 'available'}`}>{locked ? 'Locked' : expired ? 'Expired' : shop.license?.status || 'Active'}</span>
               <span>{expiresAt ? <>{new Date(expiresAt).toLocaleDateString()}<small className="shop-username">{expired ? 'Expired' : `${remainingDays} day${remainingDays === 1 ? '' : 's'} left`}</small></> : '—'}</span>
               <span className="super-admin-actions">
@@ -260,7 +260,7 @@ export default function SuperAdminDashboard() {
       </div>}
       {loaded && activeTab === 'payments' && <section className="pending-payments-list">
         {!payments.length ? <div className="panel empty-state">No pending payment requests.</div> : payments.map((payment) => <article className="panel pending-payment-card" key={payment._id}>
-          <div className="pending-payment-shop"><span className="eyebrow">Shop</span><h2>{payment.shop?.name || 'Unknown shop'}</h2><span>{payment.shop?.ownerPhone || payment.shop?.phone || 'No phone provided'}</span></div>
+          <div className="pending-payment-shop"><span className="eyebrow">Shop</span><h2>{payment.shop?.name || 'Unknown shop'}</h2><span>{payment.shop?.email || payment.shop?.ownerPhone || payment.shop?.phone || 'No contact provided'}</span></div>
           <div className="pending-payment-detail"><small>Transaction reference</small><strong>{payment.transactionReference}</strong></div>
           <div className="pending-payment-detail"><small>Method · Amount</small><strong>{payment.paymentMethod} · {formatBirr(payment.amount)}</strong><span>{payment.monthsRequested} month{payment.monthsRequested === 1 ? '' : 's'}</span></div>
           <div className="pending-payment-detail"><small>Submitted</small><strong>{payment.submittedAt ? new Date(payment.submittedAt).toLocaleString() : '—'}</strong></div>

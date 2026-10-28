@@ -80,9 +80,9 @@ export function submitBooking(bookingData) {
 }
 
 export function staffLogin(credentials) {
-  const username = String(credentials.username || '').trim().toLowerCase()
+  const email = String(credentials.email || '').trim().toLowerCase()
   const password = String(credentials.password ?? '')
-  const payload = { username }
+  const payload = { email }
 
   if (password.length === 6 && /^\d{6}$/.test(password)) {
     payload.pin = password
@@ -96,17 +96,17 @@ export function staffLogin(credentials) {
   })
 }
 
-export function requestPasswordReset(identifier) {
+export function requestPasswordReset(email) {
   return request('/auth/forgot-password', {
     method: 'POST',
-    body: JSON.stringify({ phone: identifier })
+    body: JSON.stringify({ email: String(email || '').trim().toLowerCase() })
   })
 }
 
-export function resetPasswordWithOtp({ phone, otp, newPassword }) {
+export function resetPasswordWithOtp({ email, otp, newPassword }) {
   return request('/auth/reset-password', {
     method: 'POST',
-    body: JSON.stringify({ phone, otp, newPassword })
+    body: JSON.stringify({ email: String(email || '').trim().toLowerCase(), otp, newPassword })
   })
 }
 
@@ -125,6 +125,13 @@ export function rejectBooking(id) {
 export function createUser(userData) {
   return request('/users/create', {
     method: 'POST',
+    body: JSON.stringify(userData)
+  })
+}
+
+export function updateUser(id, userData) {
+  return request(`/users/${id}`, {
+    method: 'PUT',
     body: JSON.stringify(userData)
   })
 }
@@ -263,7 +270,10 @@ async function superAdminRequest(path, token, options = {}) {
 }
 
 export function superAdminLogin(credentials) {
-  return request('/super-admin/login', { method: 'POST', body: JSON.stringify(credentials) })
+  return request('/super-admin/login', {
+    method: 'POST',
+    body: JSON.stringify({ ...credentials, email: String(credentials.email || '').trim().toLowerCase() })
+  })
 }
 
 export function superAdminListShops(token) {

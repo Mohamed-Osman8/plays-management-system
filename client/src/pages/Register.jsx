@@ -6,7 +6,7 @@ import BrandMark from '../components/BrandMark'
 
 export default function Register() {
   const { setRoute } = useApp()
-  const [form, setForm] = useState({ storeName: '', phone: '', password: '' })
+  const [form, setForm] = useState({ storeName: '', email: '', password: '' })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [busy, setBusy] = useState(false)
@@ -22,7 +22,7 @@ export default function Register() {
       const result = await registerShop({
         ...form,
         storeName: form.storeName.trim(),
-        phone: form.phone.trim(),
+        email: form.email.trim().toLowerCase(),
       })
       setSuccess(result.message || 'Diiwaangelintu way guulaysatay. Akoonkaagu wuxuu sugayaa oggolaanshaha maamulka. Fadlan kala xiriir Mohamed Osman (+251940867287).')
     } catch (requestError) {
@@ -47,7 +47,7 @@ export default function Register() {
         <h1>Create your game zone</h1>
         <p>Register your store. The platform administrator must approve your shop before you can sign in.</p>
         <label>Store name<input value={form.storeName} onChange={(event) => setForm({ ...form, storeName: event.target.value })} minLength="2" maxLength="120" autoComplete="organization" required disabled={busy || Boolean(success)} /></label>
-        <label>Admin phone<input type="tel" inputMode="tel" autoComplete="tel" pattern="\+?[0-9 ]{7,18}" title="Use 7 to 18 digits and spaces, optionally starting with +." value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} required disabled={busy || Boolean(success)} /></label>
+        <label>Email address<input type="email" autoComplete="email" maxLength="254" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required disabled={busy || Boolean(success)} /></label>
         <label>Password<input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength="10" maxLength="128" required disabled={busy || Boolean(success)} /></label>
         {error && <small className="form-error" role="alert">{error}</small>}
         {success && <div className="registration-success" role="status"><span aria-hidden="true">✓</span><p>{success}</p></div>}

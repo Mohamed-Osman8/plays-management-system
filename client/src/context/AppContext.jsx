@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer } from 'react'
 import { AppContext } from './context'
-import { approveBooking, cancelStationSession, createUser, getBookings, getShopSettings, getSessions, listStations, pauseStationSession, rejectBooking, resumeStationSession, reverseStationSession, staffLogin, startStationSession, stopStationSession, submitBooking, transferStationSession, updateShopSettings } from '../services/api'
+import { approveBooking, cancelStationSession, createUser, getBookings, getShopSettings, getSessions, listStations, pauseStationSession, rejectBooking, resumeStationSession, reverseStationSession, staffLogin, startStationSession, stopStationSession, submitBooking, transferStationSession, updateShopSettings, updateUser as updateUserRequest } from '../services/api'
 import { formatBirr } from '../utils/currency'
 
 function storedRemoteReservations() {
@@ -92,9 +92,9 @@ function reducer(state, action) {
     case 'SYNC_REMOTE_RESERVATIONS': return { ...state, remoteReservations: action.reservations.map(normalizeBooking) }
     case 'REMOTE_RESERVATION_STATUS': return { ...audit({ action: `${action.status.toLowerCase()} remote booking ${action.confirmation}`, value: 'Customer portal request', tone: action.status === 'Approved' ? 'lime' : 'orange' }), remoteReservations: state.remoteReservations.map((reservation) => reservation.confirmation === action.confirmation ? { ...reservation, status: action.status } : reservation), stations: action.status === 'Approved' ? state.stations.map((station) => station.id === action.stationId ? { ...station, status: 'reserved', reservation: { customer: action.customer } } : station) : state.stations, notifications: [{ id: Date.now(), title: `Booking ${action.status.toLowerCase()}`, detail: action.confirmation, tone: action.status === 'Approved' ? 'lime' : 'orange' }, ...state.notifications] }
     case 'HARDWARE_ALERT': return { ...audit({ action: `reported ${action.component} issue at ${action.station}`, value: action.reason, tone: 'orange' }), hardware: state.hardware.map((item) => item.station === action.station ? { ...item, [action.component]: 'Needs attention' } : item), notifications: [{ id: Date.now(), title: 'Remote hardware alert', detail: `${action.station}: ${action.reason}`, tone: 'orange' }, ...state.notifications] }
-    case 'ADD_USER': return { ...audit({ action: `created ${action.user.role.toLowerCase()} user ${action.user.username}`, value: 'User management', tone: 'purple' }), users: [...state.users, { ...action.user, id: Date.now() }] }
-    case 'DELETE_USER': return { ...audit({ action: `deleted user ${action.username}`, value: 'User management', tone: 'orange' }), users: state.users.filter((user) => user.username !== action.username) }
-    case 'UPDATE_USER': return { ...audit({ action: `updated user ${action.user.username}`, value: 'User management', tone: 'purple' }), users: state.users.map((user) => user.id === action.user.id ? { ...user, ...action.user } : user) }
+    case 'ADD_USER': return { ...audit({ action: `created ${action.user.role.toLowerCase()} user ${action.user.email}`, value: 'User management', tone: 'purple' }), users: [...state.users, { ...action.user, id: Date.now() }] }
+    case 'DELETE_USER': return { ...audit({ action: `deleted user ${action.email}`, value: 'User management', tone: 'orange' }), users: state.users.filter((user) => user.email !== action.email) }
+    case 'UPDATE_USER': return { ...audit({ action: `updated user ${action.user.email}`, value: 'User management', tone: 'purple' }), users: state.users.map((user) => user.id === action.user.id ? { ...user, ...action.user } : user) }
     default: return state
   }
 }
@@ -187,9 +187,9 @@ export function AppProvider({ children }) {
   const lockApp = useCallback(() => dispatch({ type: 'LOCK' }), [])
   const value = useMemo(() => ({
     ...state, bookingRequests: state.remoteReservations, setRoute, lockApp, refreshStations,
-    login: async (username, password) => {
+    login: async (email, password) => {
       try {
-        const result = await staffLogin({ username, password })
+        const result = await staffLogin({ email, password })
         const token = result.accessToken || result.token
         if (!token) {
           throw new Error('Login succeeded without an authentication token.')
@@ -202,7 +202,7 @@ export function AppProvider({ children }) {
           window.localStorage.removeItem('playstation-game-zone-token')
           window.localStorage.removeItem('token')
           window.localStorage.removeItem('authToken')
-          dispatch({ type: 'LOGIN', user: user.username || user.name || username, role: 'SuperAdmin' })
+          dispatch({ type: 'LOGIN', user: user.email || user.name || email, role: 'SuperAdmin' })
           return { ok: true, superAdmin: true, user }
         }
         if (!['admin', 'cashier'].includes(role)) {
@@ -253,7 +253,7 @@ export function AppProvider({ children }) {
         dispatch({ type: 'LOGOUT' })
         if (error.status === 401) dispatch({ type: 'LOGIN_FAILED' })
         if (error.lockoutUntil) dispatch({ type: 'LOGIN_LOCKOUT', lockoutUntil: error.lockoutUntil })
-        return { ok: false, message: error.message || 'Invalid username or password.', remainingSeconds: error.remainingSeconds }
+        return { ok: false, message: error.message || 'Invalid email address or password.', remainingSeconds: error.remainingSeconds }
       }
     },
     addUser: async (user) => {
@@ -261,8 +261,12 @@ export function AppProvider({ children }) {
       dispatch({ type: 'ADD_USER', user: result.user })
       return result.user
     },
-    deleteUser: (username) => dispatch({ type: 'DELETE_USER', username }),
-    updateUser: (user) => dispatch({ type: 'UPDATE_USER', user }),
+    deleteUser: (email) => dispatch({ type: 'DELETE_USER', email }),
+    updateUser: async (user) => {
+      const result = await updateUserRequest(user.id, user)
+      dispatch({ type: 'UPDATE_USER', user: result.user })
+      return result.user
+    },
     logout: () => {
       window.localStorage.removeItem('playstation-game-zone-token')
       window.localStorage.removeItem('token')
