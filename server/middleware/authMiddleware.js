@@ -2,8 +2,9 @@ import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
 import Shop from '../models/Shop.js'
 
-const PENDING_SHOP_MESSAGE = 'Akoonkaaga wali ma firfircona. Fadlan kala xiriir maamulka Mohamed Osman (+251940867287) si loo kordhiyo/loo firfircooneeyo.'
+const PENDING_SHOP_MESSAGE = 'Your email is verified, and your shop is waiting for administrator approval. Dashboard access will be available after approval.'
 const INACTIVE_SHOP_MESSAGE = 'Akoonka dukaankan lama hawlgelin ama waa la hakiyey. Fadlan kala xiriir Mohamed Osman (+251940867287).'
+const EMAIL_VERIFICATION_MESSAGE = 'Verify your email address before accessing your shop.'
 
 function normalizeRole(role) {
   const normalized = String(role || '').trim().toLowerCase().replace(/[\s_-]+/g, '')
@@ -29,6 +30,9 @@ export async function verifyStaff(req, res, next) {
   try {
     const user = await User.findById(claims.sub)
     if (!user || !normalizeRole(user.role)) return res.status(401).json({ message: 'Invalid staff identity.' })
+    if (!user.emailVerified) {
+      return res.status(403).json({ code: 'EMAIL_VERIFICATION_REQUIRED', message: EMAIL_VERIFICATION_MESSAGE })
+    }
     if (user.shopId) {
       const shop = await Shop.findById(user.shopId).select('isApproved status')
       if (!shop) return res.status(403).json({ code: 'SHOP_NOT_ACTIVE', message: 'This account is not linked to an active shop.' })

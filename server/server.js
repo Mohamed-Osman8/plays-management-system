@@ -19,6 +19,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js'
 import shopRoutes from './routes/shopRoutes.js'
 import superAdminRoutes from './routes/superAdminRoutes.js'
 import paymentRoutes from './routes/paymentRoutes.js'
+import { reportCriticalError } from './services/emailService.js'
 
 const app = express()
 const DEFAULT_PORT = Number.parseInt(process.env.PORT || '5001', 10) || 5001
@@ -110,7 +111,14 @@ app.use((error, _req, res, _next) => {
   }
   if (error?.name === 'CastError') return res.status(400).json({ message: 'Invalid identifier or field value.' })
   if (error?.code === 11000) return res.status(409).json({ message: 'A record with those details already exists.' })
-  console.error(error)
+  if (Number.isInteger(error?.status) && error.status >= 400 && error.status < 500) {
+    return res.status(error.status).json({ message: 'Invalid request.' })
+  }
+  void reportCriticalError(error, {
+    source: 'HTTP error handler',
+    method: _req.method,
+    path: _req.path
+  })
   res.status(500).json({ message: 'Internal server error.' })
 })
 
@@ -120,7 +128,7 @@ let shuttingDown = false
 async function shutdown(reason, error) {
   if (shuttingDown) return
   shuttingDown = true
-  if (error) console.error(`${reason}:`, error)
+  if (error) await reportCriticalError(error, { source: reason })
   else console.warn(reason)
 
   try {

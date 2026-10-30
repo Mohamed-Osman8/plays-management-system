@@ -1,9 +1,14 @@
 import bcrypt from 'bcryptjs'
-import { randomInt } from 'node:crypto'
+import { createHash, randomBytes, randomInt } from 'node:crypto'
 import jwt from 'jsonwebtoken'
-import nodemailer from 'nodemailer'
 import User from '../models/User.js'
 import Shop from '../models/Shop.js'
+import {
+  reportCriticalError,
+  sendNewShopNotification,
+  sendPasswordResetEmail,
+  sendVerificationEmail
+} from '../services/emailService.js'
 
 const LOCKOUT_THRESHOLD = 5
 const LOCKOUT_DURATION_MS = 120000
@@ -11,42 +16,22 @@ const RESET_OTP_TTL_MS = 5 * 60 * 1000
 const RESET_OTP_COOLDOWN_MS = 60 * 1000
 const RESET_OTP_MAX_ATTEMPTS = 5
 const GENERIC_RESET_MESSAGE = 'If an account exists for that email address, a verification code has been sent.'
-const PENDING_SHOP_MESSAGE = 'Akoonkaaga wali ma firfircona. Fadlan kala xiriir maamulka Mohamed Osman (+251940867287) si loo kordhiyo/loo firfircooneeyo.'
+const PENDING_SHOP_MESSAGE = 'Your email is verified, and your shop is waiting for administrator approval. Dashboard access will be available after approval.'
 const INACTIVE_SHOP_MESSAGE = 'Akoonka dukaankan lama hawlgelin ama waa la hakiyey. Fadlan kala xiriir Mohamed Osman (+251940867287).'
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000
+const EMAIL_VERIFICATION_MESSAGE = 'Check your email and follow the verification link before signing in.'
 
 function normalizeIdentity(value) {
   return String(value || '').trim().toLowerCase()
 }
 
-async function sendPasswordResetOtp(user, otp) {
-  const host = process.env.EMAIL_HOST
-  const userName = process.env.EMAIL_USER
-  const password = process.env.EMAIL_PASS
-  if (!host || !userName || !password) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('EMAIL_HOST, EMAIL_USER, and EMAIL_PASS must be configured before password reset can be used in production.')
-    }
-    console.info(`[password-reset] Development OTP for ${user.email}: ${otp}`)
-    return
-  }
+function hashEmailVerificationToken(token) {
+  return createHash('sha256').update(token).digest('hex')
+}
 
-  const port = Number(process.env.EMAIL_PORT || 587)
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user: userName, pass: password },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000
-  })
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM || userName,
-    to: user.email,
-    subject: 'PLAYA Game Zone password reset code',
-    text: `Your PLAYA Game Zone password reset code is ${otp}. It expires in 5 minutes.`
-  })
+async function sendPasswordResetOtp(user, otp) {
+  await sendPasswordResetEmail({ email: user.email, otp })
 }
 
 function clearResetOtp(user) {
@@ -97,7 +82,7 @@ export async function requestPasswordReset(req, res, next) {
     try {
       await sendPasswordResetOtp(user, otp)
     } catch (deliveryError) {
-      console.error('Password reset email delivery failed.', deliveryError)
+      void reportCriticalError(deliveryError, { source: 'Password reset email delivery' })
       clearResetOtp(user)
       await user.save()
       return res.status(503).json({ message: 'Unable to send a verification code right now. Please try again later.' })
@@ -165,25 +150,124 @@ export async function registerShop(req, res, next) {
       name,
       email,
       isApproved: false,
-      status: 'pending',
+      status: 'unverified',
       license: { status: 'locked', plan: 'Pending approval', expiresAt: null }
     })
+    const verificationToken = randomBytes(32).toString('hex')
+    const now = Date.now()
     const user = await User.create({
       name,
       email,
       role: 'Admin',
       shopId: shop._id,
+      emailVerified: false,
+      emailVerificationTokenHash: hashEmailVerificationToken(verificationToken),
+      emailVerificationExpiresAt: new Date(now + EMAIL_VERIFICATION_TTL_MS),
       passwordHash,
       pinHash: passwordHash
     })
+    try {
+      await sendVerificationEmail({ email, shopName: name, token: verificationToken })
+    } catch (deliveryError) {
+      void reportCriticalError(deliveryError, { source: 'Registration verification email delivery' })
+      return res.status(503).json({
+        code: 'VERIFICATION_EMAIL_FAILED',
+        message: 'Your account was created, but we could not send the verification email. Use the resend option to try again.'
+      })
+    }
     return res.status(201).json({
-      message: 'Diiwaangelintu way guulaysatay. Akoonkaagu wuxuu sugayaa oggolaanshaha maamulka. Fadlan kala xiriir Mohamed Osman (+251940867287).',
-      user: publicUser(user),
-      shop: { id: String(shop._id), name: shop.name, isApproved: shop.isApproved, license: shop.license }
+      message: 'Registration started. Check your email and follow the verification link to continue.'
     })
   } catch (error) {
     if (shop?._id) await Shop.deleteOne({ _id: shop._id }).catch(() => {})
     if (error.code === 11000) return res.status(409).json({ message: 'That email address is already registered.' })
+    return next(error)
+  }
+}
+
+export async function resendVerificationEmail(req, res, next) {
+  try {
+    const email = normalizeIdentity(req.body?.email)
+    if (email.length > 254 || !EMAIL_PATTERN.test(email)) {
+      return res.status(400).json({ message: 'Enter a valid email address.' })
+    }
+
+    const user = await User.findOne({ email, emailVerified: false })
+      .select('+emailVerificationTokenHash +emailVerificationExpiresAt')
+    if (!user) {
+      return res.json({ message: 'If an unverified account exists for that email, a verification link has been sent.' })
+    }
+
+    const verificationToken = randomBytes(32).toString('hex')
+    user.emailVerificationTokenHash = hashEmailVerificationToken(verificationToken)
+    user.emailVerificationExpiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS)
+    await user.save()
+    try {
+      await sendVerificationEmail({ email: user.email, shopName: user.name, token: verificationToken })
+    } catch (deliveryError) {
+      void reportCriticalError(deliveryError, { source: 'Resent verification email delivery' })
+      return res.status(503).json({ message: 'Unable to send the verification email right now. Please try again later.' })
+    }
+    return res.json({ message: 'A new verification link has been sent. Check your email.' })
+  } catch (error) {
+    return next(error)
+  }
+}
+
+export async function verifyEmail(req, res, next) {
+  try {
+    const token = String(req.body?.token || '')
+    if (!/^[a-f\d]{64}$/i.test(token)) {
+      return res.status(400).json({ message: 'This verification link is invalid or has expired. Request a new link and try again.' })
+    }
+
+    const now = new Date()
+    const user = await User.findOneAndUpdate(
+      {
+        emailVerified: false,
+        emailVerificationTokenHash: hashEmailVerificationToken(token),
+        emailVerificationExpiresAt: { $gt: now }
+      },
+      {
+        $set: { emailVerified: true, emailVerifiedAt: now },
+        $unset: { emailVerificationTokenHash: 1, emailVerificationExpiresAt: 1 }
+      },
+      { new: true, runValidators: true }
+    ).select('name email shopId')
+
+    if (!user) {
+      return res.status(400).json({ message: 'This verification link is invalid or has expired. Request a new link and try again.' })
+    }
+
+    const shop = await Shop.findByIdAndUpdate(
+      user.shopId,
+      {
+        $set: {
+          isApproved: false,
+          status: 'pending',
+          'license.status': 'locked',
+          'license.plan': 'Pending approval'
+        }
+      },
+      { new: true, runValidators: true }
+    ).select('name')
+    if (!shop) throw new Error(`Verified user ${user._id} is not linked to a shop.`)
+
+    try {
+      await sendNewShopNotification({
+        email: user.email,
+        shopName: shop.name,
+        ownerName: user.name,
+        verifiedAt: now
+      })
+    } catch (deliveryError) {
+      void reportCriticalError(deliveryError, { source: 'Verified shop notification email delivery' })
+    }
+
+    return res.json({
+      message: 'Email verified. Your shop is now waiting for administrator approval. You can sign in once it is approved.'
+    })
+  } catch (error) {
     return next(error)
   }
 }
@@ -295,6 +379,10 @@ export async function login(req, res, next) {
     user.loginAttempts = 0
     user.lockoutUntil = null
     await user.save()
+
+    if (!user.emailVerified) {
+      return res.status(403).json({ code: 'EMAIL_VERIFICATION_REQUIRED', message: EMAIL_VERIFICATION_MESSAGE })
+    }
 
     if (user.shopId) {
       const shop = await Shop.findById(user.shopId).select('isApproved status')

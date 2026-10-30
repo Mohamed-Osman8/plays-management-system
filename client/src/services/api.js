@@ -239,6 +239,20 @@ export function registerShop(data) {
   return request('/auth/register', { method: 'POST', body: JSON.stringify(data) })
 }
 
+export function verifyEmail(token) {
+  return request('/auth/verify-email', {
+    method: 'POST',
+    body: JSON.stringify({ token })
+  })
+}
+
+export function resendVerificationEmail(email) {
+  return request('/auth/resend-verification', {
+    method: 'POST',
+    body: JSON.stringify({ email: String(email || '').trim().toLowerCase() })
+  })
+}
+
 export function getShopPaymentHistory() {
   return request('/payments')
 }

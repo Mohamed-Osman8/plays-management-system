@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../context/useApp'
 import BrandMark from '../components/BrandMark'
-import { requestPasswordReset, resetPasswordWithOtp } from '../services/api'
+import { requestPasswordReset, resetPasswordWithOtp, verifyEmail } from '../services/api'
 
 export default function Login() {
   const { login, setRoute } = useApp()
@@ -10,6 +10,32 @@ export default function Login() {
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
+  const [verificationMessage, setVerificationMessage] = useState(() => (
+    new URLSearchParams(window.location.search).has('verifyEmail')
+      ? 'Verifying your email address…'
+      : ''
+  ))
+  const verificationStarted = useRef(false)
+
+  useEffect(() => {
+    if (verificationStarted.current) return undefined
+    const url = new URL(window.location.href)
+    const token = url.searchParams.get('verifyEmail')
+    if (!token) return undefined
+
+    verificationStarted.current = true
+    url.searchParams.delete('verifyEmail')
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+    let active = true
+    verifyEmail(token)
+      .then((result) => {
+        if (active) setVerificationMessage(result.message || 'Email verified. Your shop is waiting for administrator approval.')
+      })
+      .catch((requestError) => {
+        if (active) setVerificationMessage(requestError.message || 'Unable to verify your email. Request a new link and try again.')
+      })
+    return () => { active = false }
+  }, [])
 
   const submit = async (event) => {
     event.preventDefault()
@@ -64,6 +90,7 @@ export default function Login() {
             <span className="eyebrow login-eyebrow">SECURE STAFF ACCESS</span>
             <h2>Welcome back<span>.</span></h2>
             <p className="login-form-intro">Sign in to your operations dashboard.</p>
+            {verificationMessage && <p className="login-form-intro" role="status">{verificationMessage}</p>}
 
             <label className="login-field">
               <span>Email address</span>

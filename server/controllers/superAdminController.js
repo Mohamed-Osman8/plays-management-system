@@ -47,10 +47,8 @@ export async function listShops(_req, res, next) {
 export async function getPendingShops(_req, res, next) {
   try {
     const shops = await Shop.find({
-      $and: [
-        { $or: [{ isApproved: false }, { status: 'pending' }] },
-        { status: { $nin: ['inactive', 'rejected'] } }
-      ]
+      status: 'pending',
+      isApproved: false
     }).select('name email phone ownerPhone isApproved status createdAt approvalNotes').sort({ createdAt: 1 }).lean()
     return res.json({ shops })
   } catch (error) {
@@ -61,7 +59,7 @@ export async function getPendingShops(_req, res, next) {
 export async function getActiveShops(_req, res, next) {
   try {
     const shops = await Shop.find({
-      status: { $nin: ['pending', 'rejected'] }
+      status: { $nin: ['unverified', 'pending', 'rejected'] }
     }).select('name email phone ownerPhone isApproved status approvedAt approvedByEmail license createdAt').sort({ createdAt: -1 }).lean()
     return res.json({
       shops: shops.map((shop) => ({
@@ -99,10 +97,8 @@ export async function activateShop(req, res, next) {
     const shop = await Shop.findOneAndUpdate(
       {
         _id: shopId,
-        $and: [
-          { $or: [{ isApproved: false }, { status: 'pending' }] },
-          { status: { $nin: ['inactive', 'rejected'] } }
-        ]
+        status: 'pending',
+        isApproved: false
       },
       [{
         $set: {
@@ -139,10 +135,8 @@ export async function rejectShop(req, res, next) {
     const shop = await Shop.findOneAndUpdate(
       {
         _id: req.params.id,
-        $and: [
-          { $or: [{ isApproved: false }, { status: 'pending' }] },
-          { status: { $nin: ['inactive', 'rejected'] } }
-        ]
+        status: 'pending',
+        isApproved: false
       },
       {
         $set: {

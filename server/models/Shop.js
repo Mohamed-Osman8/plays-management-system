@@ -7,7 +7,7 @@ const shopSchema = new mongoose.Schema({
   address: { type: String, trim: true, maxlength: 240, default: '' },
   ownerPhone: { type: String, trim: true, maxlength: 30 },
   isApproved: { type: Boolean, default: true, index: true },
-  status: { type: String, enum: ['pending', 'active', 'inactive', 'rejected'], default: 'active', index: true },
+  status: { type: String, enum: ['unverified', 'pending', 'active', 'inactive', 'rejected'], default: 'active', index: true },
   approvedAt: { type: Date, default: null },
   approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'SuperAdmin', default: null },
   approvedByEmail: { type: String, trim: true, lowercase: true, default: '' },

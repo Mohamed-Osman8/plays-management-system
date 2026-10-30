@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../context/useApp'
-import { registerShop } from '../services/api'
+import { registerShop, resendVerificationEmail } from '../services/api'
 import PwaInstallButton from '../components/PwaInstallButton'
 import BrandMark from '../components/BrandMark'
 
@@ -10,6 +10,7 @@ export default function Register() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [busy, setBusy] = useState(false)
+  const [canResend, setCanResend] = useState(false)
 
   const submit = async (event) => {
     event.preventDefault()
@@ -24,9 +25,30 @@ export default function Register() {
         storeName: form.storeName.trim(),
         email: form.email.trim().toLowerCase(),
       })
-      setSuccess(result.message || 'Diiwaangelintu way guulaysatay. Akoonkaagu wuxuu sugayaa oggolaanshaha maamulka. Fadlan kala xiriir Mohamed Osman (+251940867287).')
+      setCanResend(true)
+      setSuccess(result.message || 'Check your email and follow the verification link. Your shop will then be sent to the administrator for approval.')
     } catch (requestError) {
-      setError(requestError.message || 'Unable to create your shop.')
+      if (requestError.code === 'VERIFICATION_EMAIL_FAILED') {
+        setCanResend(true)
+        setSuccess(requestError.message)
+      } else {
+        setError(requestError.message || 'Unable to create your shop.')
+        if (requestError.status === 409) setCanResend(true)
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const resendVerification = async () => {
+    if (busy) return
+    setBusy(true)
+    setError('')
+    try {
+      const result = await resendVerificationEmail(form.email)
+      setSuccess(result.message || 'A new verification link has been sent. Check your email.')
+    } catch (requestError) {
+      setError(requestError.message || 'Unable to resend the verification email.')
     } finally {
       setBusy(false)
     }
@@ -45,12 +67,13 @@ export default function Register() {
         <button className="onboarding-close" type="button" aria-label="Close shop registration and return to sign in" title="Back to sign in" onClick={() => setRoute('login')}>×</button>
         <span className="eyebrow">Create your store</span>
         <h1>Create your game zone</h1>
-        <p>Register your store. The platform administrator must approve your shop before you can sign in.</p>
+        <p>Verify your email first. The platform administrator must then approve your shop before dashboard access is available.</p>
         <label>Store name<input value={form.storeName} onChange={(event) => setForm({ ...form, storeName: event.target.value })} minLength="2" maxLength="120" autoComplete="organization" required disabled={busy || Boolean(success)} /></label>
         <label>Email address<input type="email" autoComplete="email" maxLength="254" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required disabled={busy || Boolean(success)} /></label>
         <label>Password<input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength="10" maxLength="128" required disabled={busy || Boolean(success)} /></label>
         {error && <small className="form-error" role="alert">{error}</small>}
         {success && <div className="registration-success" role="status"><span aria-hidden="true">✓</span><p>{success}</p></div>}
+        {canResend && <button className="text-button" type="button" onClick={resendVerification} disabled={busy}>{busy ? 'Sending…' : 'Resend verification email'}</button>}
         {!success && <button className="button button-primary" type="submit" disabled={busy}>{busy ? <><span className="spinner" /> Creating shop…</> : 'Create shop'}</button>}
         <button className="text-button" type="button" onClick={() => setRoute('login')}>{success ? 'Continue to sign in' : 'Already registered? Sign in'}</button>
       </form>
