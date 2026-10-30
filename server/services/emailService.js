@@ -44,10 +44,45 @@ async function sendEmail({ to, subject, text }) {
   })
 }
 
+function parseClientOrigin(value) {
+  const origin = value.trim()
+  const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(origin) ? origin : `http://${origin}`)
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+    throw new Error('CLIENT_URL and CLIENT_ORIGIN must use HTTP(S) frontend URLs without credentials.')
+  }
+  return url
+}
+
+function isLocalOrigin(url) {
+  const hostname = url.hostname.replace(/^\[|\]$/g, '')
+  return hostname === 'localhost'
+    || hostname.endsWith('.localhost')
+    || /^127(?:\.\d{1,3}){3}$/.test(hostname)
+    || hostname === '::1'
+}
+
 function getClientUrl() {
-  const configuredUrl = process.env.CLIENT_URL || process.env.CLIENT_ORIGIN || 'http://localhost:5173'
-  const origin = configuredUrl.split(',')[0].trim()
-  return new URL('/', origin)
+  const configuredOrigins = [
+    ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
+    ...(process.env.CLIENT_ORIGIN || '').split(',')
+  ].map((origin) => origin.trim()).filter(Boolean)
+
+  if (configuredOrigins.length === 0) {
+    configuredOrigins.push('http://localhost:5173')
+  }
+
+  let candidates
+  try {
+    candidates = configuredOrigins.map(parseClientOrigin)
+  } catch {
+    throw new Error('CLIENT_URL and CLIENT_ORIGIN must contain valid HTTP(S) frontend URLs.')
+  }
+
+  const frontendOrigin = candidates.find((url) => !isLocalOrigin(url)) || candidates[0]
+  frontendOrigin.pathname = '/'
+  frontendOrigin.search = ''
+  frontendOrigin.hash = ''
+  return frontendOrigin
 }
 
 export async function sendVerificationEmail({ email, shopName, token }) {
