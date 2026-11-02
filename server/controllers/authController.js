@@ -30,10 +30,6 @@ function hashEmailVerificationToken(token) {
   return createHash('sha256').update(token).digest('hex')
 }
 
-async function sendPasswordResetOtp(user, otp) {
-  await sendPasswordResetEmail({ email: user.email, otp })
-}
-
 function clearResetOtp(user) {
   user.resetOtp = null
   user.resetOtpExpires = null
@@ -80,7 +76,8 @@ export async function requestPasswordReset(req, res, next) {
     await user.save()
 
     try {
-      await sendPasswordResetOtp(user, otp)
+      const recipientEmail = normalizeIdentity(user.email)
+      await sendPasswordResetEmail({ email: recipientEmail, otp })
     } catch (deliveryError) {
       void reportCriticalError(deliveryError, { source: 'Password reset email delivery' })
       clearResetOtp(user)
@@ -282,7 +279,7 @@ function getCredential(body = {}) {
 export async function login(req, res, next) {
   try {
     const identity = normalizeIdentity(req.body?.email || req.body?.username)
-    const credential = getCredential(req.body).trim()
+    const credential = getCredential(req.body)
 
     if (!identity || !credential) {
       return res.status(400).json({

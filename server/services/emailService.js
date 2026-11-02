@@ -1,20 +1,36 @@
 import nodemailer from 'nodemailer'
 
 const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'mohamed094osman@gmail.com'
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const ERROR_ALERT_COOLDOWN_MS = 5 * 60 * 1000
 const recentErrorAlerts = new Map()
 let transporter
 
+function isDevelopmentFallbackEnabled() {
+  return process.env.NODE_ENV === 'development'
+    || process.env.NODE_ENV === 'test'
+    || process.env.EMAIL_FALLBACK === 'console'
+}
+
 function getSenderHeader() {
-  const address = process.env.EMAIL_FROM || process.env.EMAIL_USER
-  return `"PLAYA Game Zone" <${address}>`
+  const authenticatedAddress = String(process.env.EMAIL_USER || '').trim()
+  const isGmailSmtp = /(^|\.)gmail\.com$/i.test(String(process.env.EMAIL_HOST || '').trim())
+  const address = isGmailSmtp
+    ? authenticatedAddress
+    : String(process.env.EMAIL_FROM || authenticatedAddress).trim()
+
+  if (!EMAIL_PATTERN.test(address)) {
+    throw new Error('EMAIL_FROM or EMAIL_USER must be a valid sender email address.')
+  }
+
+  return { name: 'PLAYA Game Zone', address }
 }
 
 function getTransporter() {
   const { EMAIL_HOST: host, EMAIL_USER: user, EMAIL_PASS: pass } = process.env
   if (!host || !user || !pass) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('EMAIL_HOST, EMAIL_USER, and EMAIL_PASS must be configured in production.')
+    if (!isDevelopmentFallbackEnabled()) {
+      throw new Error('EMAIL_HOST, EMAIL_USER, and EMAIL_PASS must be configured unless development console fallback is enabled.')
     }
     return null
   }
@@ -36,28 +52,68 @@ function getTransporter() {
   return transporter
 }
 
-async function sendEmail({ to, subject, text }) {
-  const mailer = getTransporter()
+function normalizeRecipientEmail(email) {
+  const recipientEmail = String(email || '').trim().toLowerCase()
+  if (!EMAIL_PATTERN.test(recipientEmail)) {
+    throw new Error('A valid recipient email address is required.')
+  }
+  return recipientEmail
+}
+
+function logDevelopmentEmail({ to, subject, developmentSecret }) {
+  console.info('\n========== PLAYA EMAIL DEVELOPMENT FALLBACK ==========')
+  console.info(`📨 [EMAIL FOR] ${to}`)
+  console.info(`Subject: ${subject}`)
+
+  if (developmentSecret) {
+    const { type, value } = developmentSecret
+    const label = type === 'OTP' ? 'OTP CODE' : 'EMAIL VERIFICATION TOKEN'
+    const secretLabel = type === 'OTP' ? 'YOUR CODE' : 'YOUR TOKEN'
+    console.info(`🔐 [${label} FOR] ${to}`)
+    console.info(`🔑 [${secretLabel} IS] ${value}`)
+  }
+
+  console.info('======================================================\n')
+}
+
+async function sendEmail({ to, subject, text, developmentSecret }) {
+  const recipientEmail = normalizeRecipientEmail(to)
+  const developmentFallbackEnabled = isDevelopmentFallbackEnabled()
+
+  if (developmentFallbackEnabled && developmentSecret) {
+    logDevelopmentEmail({ to: recipientEmail, subject, developmentSecret })
+  }
+
+  let mailer
+  try {
+    mailer = getTransporter()
+  } catch (error) {
+    if (!developmentFallbackEnabled) throw error
+    console.error(`[email] SMTP configuration for ${recipientEmail} failed; development fallback is available.`, error)
+    if (!developmentSecret) logDevelopmentEmail({ to: recipientEmail, subject })
+    return
+  }
+
   if (!mailer) {
-    console.info(`\n========== EMAIL FALLBACK (Muuqaalka Emailka) ==========`)
-    console.info(`To: ${to}\nSubject: ${subject}\n\n${text}`)
-    console.info(`====================================================\n`)
     return
   }
 
   try {
     await mailer.sendMail({
       from: getSenderHeader(),
-      to,
+      to: recipientEmail,
       subject,
       text
     })
   } catch (error) {
-    // Haddyay SMTP-ga Gmail dhibaato timaado, halkan ayuu qabanayaa oo link-ga terminal-ka ayuu soo dhigay
-    console.warn('[email] SMTP send failed, printing link to console for testing:', error.message)
-    console.info(`\n========== EMAIL FALLBACK LINK ==========`)
-    console.info(`To: ${to}\nSubject: ${subject}\n\n${text}`)
-    console.info(`=========================================\n`)
+    if (developmentFallbackEnabled) {
+      console.error(`[email] SMTP delivery to ${recipientEmail} failed; development fallback is available.`, error)
+      if (!developmentSecret) logDevelopmentEmail({ to: recipientEmail, subject })
+      return
+    }
+
+    console.error(`[email] Failed to send message to ${recipientEmail}.`, error)
+    throw error
   }
 }
 function parseClientOrigin(value) {
@@ -102,12 +158,18 @@ function getClientUrl() {
   return frontendOrigin
 }
 export async function sendVerificationEmail({ email, shopName, token }) {
+  const recipientEmail = normalizeRecipientEmail(email)
+  const verificationToken = String(token || '')
+  if (!verificationToken) {
+    throw new Error('An email verification token is required.')
+  }
+
   const verificationUrl = getClientUrl()
-  verificationUrl.searchParams.set('verifyEmail', token)
+  verificationUrl.searchParams.set('verifyEmail', verificationToken)
   verificationUrl.hash = 'login'
 
   await sendEmail({
-    to: email,
+    to: recipientEmail,
     subject: 'Verify your PLAYA Game Zone email',
     text: [
       `Hello ${shopName},`,
@@ -116,7 +178,8 @@ export async function sendVerificationEmail({ email, shopName, token }) {
       verificationUrl.toString(),
       '',
       'This secure link expires in 24 hours. Your account cannot be used until your email is verified.'
-    ].join('\n')
+    ].join('\n'),
+    developmentSecret: { type: 'EMAIL_VERIFICATION_TOKEN', value: verificationToken }
   })
 }
 
@@ -140,10 +203,17 @@ export async function sendNewShopNotification({ email, shopName, ownerName, veri
 }
 
 export async function sendPasswordResetEmail({ email, otp }) {
+  const recipientEmail = normalizeRecipientEmail(email)
+  const otpCode = String(otp || '')
+  if (!/^\d{6}$/.test(otpCode)) {
+    throw new Error('A valid 6-digit password reset code is required.')
+  }
+
   await sendEmail({
-    to: email,
+    to: recipientEmail,
     subject: 'PLAYA Game Zone password reset code',
-    text: `Your PLAYA Game Zone password reset code is ${otp}. It expires in 5 minutes.`
+    text: `Your PLAYA Game Zone password reset code is ${otpCode}. It expires in 5 minutes.`,
+    developmentSecret: { type: 'OTP', value: otpCode }
   })
 }
 
