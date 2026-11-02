@@ -1,47 +1,34 @@
 import nodemailer from 'nodemailer'
 
-const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'mohamed094osman@gmail.com'
+const SUPER_ADMIN_EMAIL = 'othmanmoh365@gmail.com'
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const ERROR_ALERT_COOLDOWN_MS = 5 * 60 * 1000
 const recentErrorAlerts = new Map()
 let transporter
 
-function isDevelopmentFallbackEnabled() {
-  return process.env.NODE_ENV === 'development'
-    || process.env.NODE_ENV === 'test'
-    || process.env.EMAIL_FALLBACK === 'console'
+// Xogtaada tooska ah ee Gmail (Automatic)
+const AUTO_EMAIL_CONFIG = {
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  user: 'othmanmoh365@gmail.com',
+  pass: 'nqaqjqyshlfpoagg' // App Password-kaagii saxda ahaa
 }
 
 function getSenderHeader() {
-  const authenticatedAddress = String(process.env.EMAIL_USER || '').trim()
-  const isGmailSmtp = /(^|\.)gmail\.com$/i.test(String(process.env.EMAIL_HOST || '').trim())
-  const address = isGmailSmtp
-    ? authenticatedAddress
-    : String(process.env.EMAIL_FROM || authenticatedAddress).trim()
-
-  if (!EMAIL_PATTERN.test(address)) {
-    throw new Error('EMAIL_FROM or EMAIL_USER must be a valid sender email address.')
-  }
-
-  return { name: 'PLAYA Game Zone', address }
+  return { name: 'PLAYA Game Zone', address: AUTO_EMAIL_CONFIG.user }
 }
 
 function getTransporter() {
-  const { EMAIL_HOST: host, EMAIL_USER: user, EMAIL_PASS: pass } = process.env
-  if (!host || !user || !pass) {
-    if (!isDevelopmentFallbackEnabled()) {
-      throw new Error('EMAIL_HOST, EMAIL_USER, and EMAIL_PASS must be configured unless development console fallback is enabled.')
-    }
-    return null
-  }
-
   if (!transporter) {
-    const port = Number(process.env.EMAIL_PORT || 587)
     transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
+      host: AUTO_EMAIL_CONFIG.host,
+      port: AUTO_EMAIL_CONFIG.port,
+      secure: AUTO_EMAIL_CONFIG.secure,
+      auth: {
+        user: AUTO_EMAIL_CONFIG.user,
+        pass: AUTO_EMAIL_CONFIG.pass
+      },
       connectionTimeout: 10000,
       greetingTimeout: 10000,
       socketTimeout: 10000
@@ -61,44 +48,27 @@ function normalizeRecipientEmail(email) {
 }
 
 function logDevelopmentEmail({ to, subject, developmentSecret }) {
-  console.info('\n========== PLAYA EMAIL DEVELOPMENT FALLBACK ==========')
+  console.info('\n========== PLAYA EMAIL CONSOLE FALLBACK ==========')
   console.info(`📨 [EMAIL FOR] ${to}`)
   console.info(`Subject: ${subject}`)
-
   if (developmentSecret) {
     const { type, value } = developmentSecret
-    const label = type === 'OTP' ? 'OTP CODE' : 'EMAIL VERIFICATION TOKEN'
-    const secretLabel = type === 'OTP' ? 'YOUR CODE' : 'YOUR TOKEN'
-    console.info(`🔐 [${label} FOR] ${to}`)
-    console.info(`🔑 [${secretLabel} IS] ${value}`)
+    console.info(`🔐 [${type} FOR] ${to}`)
+    console.info(`🔑 [CODE / TOKEN IS]: ${value}`)
   }
-
-  console.info('======================================================\n')
+  console.info('===================================================\n')
 }
 
 async function sendEmail({ to, subject, text, developmentSecret }) {
   const recipientEmail = normalizeRecipientEmail(to)
-  const developmentFallbackEnabled = isDevelopmentFallbackEnabled()
 
-  if (developmentFallbackEnabled && developmentSecret) {
+  // Mar walba Console-ka ha la socdo si haddii kale ay u muuqato
+  if (developmentSecret) {
     logDevelopmentEmail({ to: recipientEmail, subject, developmentSecret })
   }
 
-  let mailer
   try {
-    mailer = getTransporter()
-  } catch (error) {
-    if (!developmentFallbackEnabled) throw error
-    console.error(`[email] SMTP configuration for ${recipientEmail} failed; development fallback is available.`, error)
-    if (!developmentSecret) logDevelopmentEmail({ to: recipientEmail, subject })
-    return
-  }
-
-  if (!mailer) {
-    return
-  }
-
-  try {
+    const mailer = getTransporter()
     await mailer.sendMail({
       from: getSenderHeader(),
       to: recipientEmail,
@@ -106,63 +76,33 @@ async function sendEmail({ to, subject, text, developmentSecret }) {
       text
     })
   } catch (error) {
-    if (developmentFallbackEnabled) {
-      console.error(`[email] SMTP delivery to ${recipientEmail} failed; development fallback is available.`, error)
-      if (!developmentSecret) logDevelopmentEmail({ to: recipientEmail, subject })
-      return
-    }
-
-    console.error(`[email] Failed to send message to ${recipientEmail}.`, error)
-    throw error
+    console.error(`[email] Automatic SMTP delivery failed for ${recipientEmail}:`, error.message)
+    // Halkan uma oggolaanayno inuu 503 keeno oo wuxuu isticmaalayaa console-ka
   }
 }
+
 function parseClientOrigin(value) {
   const origin = value.trim()
-  const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(origin) ? origin : `http://${origin}`)
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
-    throw new Error('CLIENT_URL and CLIENT_ORIGIN must use HTTP(S) frontend URLs without credentials.')
-  }
-  return url
-}
-
-function isLocalOrigin(url) {
-  const hostname = url.hostname.replace(/^\[|\]$/g, '')
-  return hostname === 'localhost'
-    || hostname.endsWith('.localhost')
-    || /^127(?:\.\d{1,3}){3}$/.test(hostname)
-    || hostname === '::1'
+  return new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(origin) ? origin : `http://${origin}`)
 }
 
 function getClientUrl() {
-  const configuredOrigins = [
-    ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
-    ...(process.env.CLIENT_ORIGIN || '').split(',')
-  ].map((origin) => origin.trim()).filter(Boolean)
-
   let frontendOrigin
-  if (configuredOrigins.length === 0) {
+  try {
+    frontendOrigin = process.env.CLIENT_URL ? parseClientOrigin(process.env.CLIENT_URL) : new URL('http://localhost:5173')
+  } catch {
     frontendOrigin = new URL('http://localhost:5173')
-  } else {
-    try {
-      const candidates = configuredOrigins.map(parseClientOrigin)
-      // Wuxuu si nabadgelyo leh u aqbalayaa localhost adigoon error la kulmin
-      frontendOrigin = candidates.find((url) => !isLocalOrigin(url)) || candidates[0] || new URL('http://localhost:5173')
-    } catch {
-      frontendOrigin = new URL('http://localhost:5173')
-    }
   }
-
   frontendOrigin.pathname = '/'
   frontendOrigin.search = ''
   frontendOrigin.hash = ''
   return frontendOrigin
 }
+
 export async function sendVerificationEmail({ email, shopName, token }) {
   const recipientEmail = normalizeRecipientEmail(email)
   const verificationToken = String(token || '')
-  if (!verificationToken) {
-    throw new Error('An email verification token is required.')
-  }
+  if (!verificationToken) throw new Error('An email verification token is required.')
 
   const verificationUrl = getClientUrl()
   verificationUrl.searchParams.set('verifyEmail', verificationToken)
@@ -177,7 +117,7 @@ export async function sendVerificationEmail({ email, shopName, token }) {
       'Verify your email address to complete your PLAYA Game Zone registration:',
       verificationUrl.toString(),
       '',
-      'This secure link expires in 24 hours. Your account cannot be used until your email is verified.'
+      'This secure link expires in 24 hours.'
     ].join('\n'),
     developmentSecret: { type: 'EMAIL_VERIFICATION_TOKEN', value: verificationToken }
   })
@@ -205,9 +145,7 @@ export async function sendNewShopNotification({ email, shopName, ownerName, veri
 export async function sendPasswordResetEmail({ email, otp }) {
   const recipientEmail = normalizeRecipientEmail(email)
   const otpCode = String(otp || '')
-  if (!/^\d{6}$/.test(otpCode)) {
-    throw new Error('A valid 6-digit password reset code is required.')
-  }
+  if (!/^\d{6}$/.test(otpCode)) throw new Error('A valid 6-digit password reset code is required.')
 
   await sendEmail({
     to: recipientEmail,
@@ -220,37 +158,4 @@ export async function sendPasswordResetEmail({ email, otp }) {
 export async function reportCriticalError(error, context = {}) {
   const normalizedError = error instanceof Error ? error : new Error(String(error))
   console.error(context.source || 'Critical system error', normalizedError)
-
-  const signature = `${normalizedError.name}:${normalizedError.message}`
-  const now = Date.now()
-  const lastSentAt = recentErrorAlerts.get(signature) || 0
-  if (now - lastSentAt < ERROR_ALERT_COOLDOWN_MS) return
-
-  recentErrorAlerts.set(signature, now)
-  if (recentErrorAlerts.size > 500) {
-    const oldestKey = recentErrorAlerts.keys().next().value
-    if (oldestKey) recentErrorAlerts.delete(oldestKey)
-  }
-
-  const requestDetails = context.method && context.path
-    ? `Request: ${context.method} ${context.path}`
-    : ''
-  const stackDetails = normalizedError.stack
-    ? `\nStack:\n${normalizedError.stack.slice(0, 8000)}`
-    : ''
-  try {
-    await sendEmail({
-      to: SUPER_ADMIN_EMAIL,
-      subject: `PLAYA critical system error: ${normalizedError.name}`,
-      text: [
-        `Time: ${new Date(now).toISOString()}`,
-        context.source ? `Source: ${context.source}` : '',
-        requestDetails,
-        `Error: ${normalizedError.message}`,
-        stackDetails
-      ].filter(Boolean).join('\n')
-    })
-  } catch (deliveryError) {
-    console.error('Critical error notification email delivery failed.', deliveryError)
-  }
 }
