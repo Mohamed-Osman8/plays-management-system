@@ -3,6 +3,20 @@ import { useApp } from '../context/useApp'
 import BrandMark from '../components/BrandMark'
 import { requestPasswordReset, resetPasswordWithOtp, verifyEmail } from '../services/api'
 
+const verificationRequests = new Map()
+
+function verifyEmailOnce(token) {
+  if (!verificationRequests.has(token)) {
+    const request = verifyEmail(token)
+    verificationRequests.set(token, request)
+    const clearRequest = () => {
+      window.setTimeout(() => verificationRequests.delete(token), 0)
+    }
+    request.then(clearRequest, clearRequest)
+  }
+  return verificationRequests.get(token)
+}
+
 export default function Login() {
   const { login, setRoute } = useApp()
   const [form, setForm] = useState({ email: '', password: '' })
@@ -15,23 +29,27 @@ export default function Login() {
       ? 'Verifying your email address…'
       : ''
   ))
-  const verificationStarted = useRef(false)
+  const verificationToken = useRef(new URL(window.location.href).searchParams.get('verifyEmail'))
 
   useEffect(() => {
-    if (verificationStarted.current) return undefined
-    const url = new URL(window.location.href)
-    const token = url.searchParams.get('verifyEmail')
+    const token = verificationToken.current
     if (!token) return undefined
 
-    verificationStarted.current = true
-    url.searchParams.delete('verifyEmail')
-    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
     let active = true
-    verifyEmail(token)
+    const clearVerificationToken = () => {
+      if (!active) return
+      const url = new URL(window.location.href)
+      url.searchParams.delete('verifyEmail')
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+      verificationToken.current = null
+    }
+    verifyEmailOnce(token)
       .then((result) => {
+        clearVerificationToken()
         if (active) setVerificationMessage(result.message || 'Email verified. Your shop is waiting for administrator approval.')
       })
       .catch((requestError) => {
+        clearVerificationToken()
         if (active) setVerificationMessage(requestError.message || 'Unable to verify your email. Request a new link and try again.')
       })
     return () => { active = false }

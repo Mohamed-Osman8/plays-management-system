@@ -5,6 +5,11 @@ const ERROR_ALERT_COOLDOWN_MS = 5 * 60 * 1000
 const recentErrorAlerts = new Map()
 let transporter
 
+function getSenderHeader() {
+  const address = process.env.EMAIL_FROM || process.env.EMAIL_USER
+  return `"PLAYA Game Zone" <${address}>`
+}
+
 function getTransporter() {
   const { EMAIL_HOST: host, EMAIL_USER: user, EMAIL_PASS: pass } = process.env
   if (!host || !user || !pass) {
@@ -24,6 +29,8 @@ function getTransporter() {
       connectionTimeout: 10000,
       greetingTimeout: 10000,
       socketTimeout: 10000
+    }, {
+      from: getSenderHeader()
     })
   }
   return transporter
@@ -37,7 +44,7 @@ async function sendEmail({ to, subject, text }) {
   }
 
   await mailer.sendMail({
-    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+    from: getSenderHeader(),
     to,
     subject,
     text
@@ -68,7 +75,7 @@ function getClientUrl() {
   ].map((origin) => origin.trim()).filter(Boolean)
 
   if (configuredOrigins.length === 0) {
-    configuredOrigins.push('http://localhost:5173')
+    throw new Error('CLIENT_URL or CLIENT_ORIGIN must be configured with a reachable frontend URL for email links.')
   }
 
   let candidates
@@ -78,7 +85,11 @@ function getClientUrl() {
     throw new Error('CLIENT_URL and CLIENT_ORIGIN must contain valid HTTP(S) frontend URLs.')
   }
 
-  const frontendOrigin = candidates.find((url) => !isLocalOrigin(url)) || candidates[0]
+  const frontendOrigin = candidates.find((url) => !isLocalOrigin(url))
+  if (!frontendOrigin) {
+    throw new Error('CLIENT_URL or CLIENT_ORIGIN must include a reachable frontend URL; localhost and loopback addresses cannot be used in email links.')
+  }
+
   frontendOrigin.pathname = '/'
   frontendOrigin.search = ''
   frontendOrigin.hash = ''

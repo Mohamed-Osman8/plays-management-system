@@ -35,10 +35,19 @@ if (Buffer.byteLength(process.env.JWT_SECRET, 'utf8') < 32) {
   throw new Error('JWT_SECRET must be at least 32 bytes. Generate a unique, random secret before starting the server.')
 }
 
-const configuredOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
-  .split(',')
+const configuredOrigins = [
+  ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
+  ...(process.env.CLIENT_ORIGIN || '').split(',')
+]
   .map((origin) => origin.trim())
   .filter(Boolean)
+  .map((origin) => {
+    const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(origin) ? origin : `http://${origin}`)
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+      throw new Error('CLIENT_URL and CLIENT_ORIGIN must use HTTP(S) frontend URLs without credentials.')
+    }
+    return url.origin
+  })
 const allowedOrigins = new Set([
   ...configuredOrigins,
   'http://localhost:5173',
