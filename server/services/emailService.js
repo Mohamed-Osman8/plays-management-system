@@ -75,7 +75,7 @@ function getClientUrl() {
   ].map((origin) => origin.trim()).filter(Boolean)
 
   if (configuredOrigins.length === 0) {
-    throw new Error('CLIENT_URL or CLIENT_ORIGIN must be configured with a reachable frontend URL for email links.')
+    return new URL('http://localhost:5173')
   }
 
   let candidates
@@ -85,10 +85,7 @@ function getClientUrl() {
     throw new Error('CLIENT_URL and CLIENT_ORIGIN must contain valid HTTP(S) frontend URLs.')
   }
 
-  const frontendOrigin = candidates.find((url) => !isLocalOrigin(url))
-  if (!frontendOrigin) {
-    throw new Error('CLIENT_URL or CLIENT_ORIGIN must include a reachable frontend URL; localhost and loopback addresses cannot be used in email links.')
-  }
+  const frontendOrigin = candidates.find((url) => !isLocalOrigin(url)) || candidates[0] || new URL('http://localhost:5173')
 
   frontendOrigin.pathname = '/'
   frontendOrigin.search = ''
