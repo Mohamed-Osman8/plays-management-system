@@ -11,7 +11,7 @@ import {
 } from '../services/emailService.js'
 
 const LOCKOUT_THRESHOLD = 5
-const LOCKOUT_DURATION_MS = 120000
+const LOCKOUT_DURATION_MS = 30000
 const RESET_OTP_TTL_MS = 5 * 60 * 1000
 const RESET_OTP_COOLDOWN_MS = 60 * 1000
 const RESET_OTP_MAX_ATTEMPTS = 5
@@ -339,7 +339,7 @@ export async function login(req, res, next) {
     if (lockoutUntil > now) {
       const remainingSeconds = Math.ceil((lockoutUntil - now) / 1000)
       return res.status(423).json({
-        message: 'Account locked for 120 seconds.',
+        message: 'Account locked for 30 seconds.',
         lockoutUntil: new Date(lockoutUntil).toISOString(),
         remainingSeconds
       })

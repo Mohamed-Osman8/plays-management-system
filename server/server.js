@@ -67,22 +67,22 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }))
 
 const apiLimiter = rateLimit({
-  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 10 * 30 * 1000),
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 30 * 1000),
   limit: Number(process.env.RATE_LIMIT_MAX || 100),
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { message: 'Too many requests. Please try again later.' }
 })
 const authLimiter = rateLimit({
-  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 10 * 30 * 1000),
-  limit: Number(process.env.AUTH_RATE_LIMIT_MAX || 10),
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 30 * 1000),
+  limit: Number(process.env.AUTH_RATE_LIMIT_MAX || 15),
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { message: 'Too many authentication attempts. Please try again later.' }
 })
 const superAdminAuthLimiter = rateLimit({
-  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 10 * 30 * 1000),
-  limit: Number(process.env.AUTH_RATE_LIMIT_MAX || 10),
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 30 * 1000),
+  limit: Number(process.env.AUTH_RATE_LIMIT_MAX || 15),
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { message: 'Too many authentication attempts. Please try again later.' }

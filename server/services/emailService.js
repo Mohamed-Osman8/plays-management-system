@@ -39,18 +39,27 @@ function getTransporter() {
 async function sendEmail({ to, subject, text }) {
   const mailer = getTransporter()
   if (!mailer) {
-    console.info(`[email] ${subject}\nTo: ${to}\n${text}`)
+    console.info(`\n========== EMAIL FALLBACK (Muuqaalka Emailka) ==========`)
+    console.info(`To: ${to}\nSubject: ${subject}\n\n${text}`)
+    console.info(`====================================================\n`)
     return
   }
 
-  await mailer.sendMail({
-    from: getSenderHeader(),
-    to,
-    subject,
-    text
-  })
+  try {
+    await mailer.sendMail({
+      from: getSenderHeader(),
+      to,
+      subject,
+      text
+    })
+  } catch (error) {
+    // Haddyay SMTP-ga Gmail dhibaato timaado, halkan ayuu qabanayaa oo link-ga terminal-ka ayuu soo dhigay
+    console.warn('[email] SMTP send failed, printing link to console for testing:', error.message)
+    console.info(`\n========== EMAIL FALLBACK LINK ==========`)
+    console.info(`To: ${to}\nSubject: ${subject}\n\n${text}`)
+    console.info(`=========================================\n`)
+  }
 }
-
 function parseClientOrigin(value) {
   const origin = value.trim()
   const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(origin) ? origin : `http://${origin}`)
@@ -74,25 +83,24 @@ function getClientUrl() {
     ...(process.env.CLIENT_ORIGIN || '').split(',')
   ].map((origin) => origin.trim()).filter(Boolean)
 
+  let frontendOrigin
   if (configuredOrigins.length === 0) {
-    return new URL('http://localhost:5173')
+    frontendOrigin = new URL('http://localhost:5173')
+  } else {
+    try {
+      const candidates = configuredOrigins.map(parseClientOrigin)
+      // Wuxuu si nabadgelyo leh u aqbalayaa localhost adigoon error la kulmin
+      frontendOrigin = candidates.find((url) => !isLocalOrigin(url)) || candidates[0] || new URL('http://localhost:5173')
+    } catch {
+      frontendOrigin = new URL('http://localhost:5173')
+    }
   }
-
-  let candidates
-  try {
-    candidates = configuredOrigins.map(parseClientOrigin)
-  } catch {
-    throw new Error('CLIENT_URL and CLIENT_ORIGIN must contain valid HTTP(S) frontend URLs.')
-  }
-
-  const frontendOrigin = candidates.find((url) => !isLocalOrigin(url)) || candidates[0] || new URL('http://localhost:5173')
 
   frontendOrigin.pathname = '/'
   frontendOrigin.search = ''
   frontendOrigin.hash = ''
   return frontendOrigin
 }
-
 export async function sendVerificationEmail({ email, shopName, token }) {
   const verificationUrl = getClientUrl()
   verificationUrl.searchParams.set('verifyEmail', token)
