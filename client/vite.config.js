@@ -5,6 +5,20 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    host: '0.0.0.0',
+    port: 5174,
+    strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:5001',
+        changeOrigin: true,
+        configure(proxy) {
+          proxy.on('proxyReq', (proxyRequest) => proxyRequest.removeHeader('origin'))
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

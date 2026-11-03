@@ -4,6 +4,7 @@ import express from 'express'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import mongoose from 'mongoose'
+import { resolve } from 'node:path'
 import { connectDatabase } from './config/db.js'
 import { ensureTenantIndexes } from './config/tenantIndexes.js'
 import authRoutes from './routes/authRoutes.js'
@@ -19,12 +20,13 @@ import dashboardRoutes from './routes/dashboardRoutes.js'
 import shopRoutes from './routes/shopRoutes.js'
 import superAdminRoutes from './routes/superAdminRoutes.js'
 import paymentRoutes from './routes/paymentRoutes.js'
-import { reportCriticalError } from './services/emailService.js'
+import { reportCriticalError, verifyEmailTransport } from './services/emailService.js'
 
 const app = express()
 const DEFAULT_PORT = Number.parseInt(process.env.PORT || '5001', 10) || 5001
 let port = DEFAULT_PORT
 app.set('trust proxy', 1)
+console.info(`[config] dotenv/config loaded from working directory ${resolve(process.cwd())}`)
 
 
 
@@ -46,16 +48,39 @@ const configuredOrigins = [
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
       throw new Error('CLIENT_URL and CLIENT_ORIGIN must use HTTP(S) frontend URLs without credentials.')
     }
+    if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
+      throw new Error('Production CLIENT_URL and CLIENT_ORIGIN must use HTTPS.')
+    }
     return url.origin
   })
 const allowedOrigins = new Set([
   ...configuredOrigins,
-  'http://localhost:5173',
-  'http://127.0.0.1:5173'
+  ...(process.env.NODE_ENV === 'production' ? [] : [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5174'
+  ])
 ])
 
 app.disable('x-powered-by')
 app.use(helmet())
+app.use('/api/auth/register', (req, res, next) => {
+  const origin = req.get('origin') || 'no-origin'
+  console.info(`[http] ${req.method} /api/auth/register origin=${origin}`)
+  res.once('finish', () => {
+    console.info(`[http] ${req.method} /api/auth/register status=${res.statusCode} origin=${origin}`)
+  })
+  next()
+})
+app.use('/api/auth/verify-email', (req, res, next) => {
+  const origin = req.get('origin') || 'no-origin'
+  console.info(`[email-verification] ${req.method} /api/auth/verify-email received origin=${origin}`)
+  res.once('finish', () => {
+    console.info(`[email-verification] response status=${res.statusCode}`)
+  })
+  next()
+})
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.has(origin)) return callback(null, true)
@@ -204,6 +229,9 @@ async function tryListen(startPort, attempts = 12) {
 async function startServer() {
   await connectDatabase()
   await ensureTenantIndexes()
+  await verifyEmailTransport().catch((error) =>
+    reportCriticalError(error, { source: 'SMTP startup diagnostic' })
+  )
 
   // Attempt to bind to requested port; fall back to next ports if in use.
   const boundPort = await tryListen(port)

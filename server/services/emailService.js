@@ -1,161 +1,255 @@
 import nodemailer from 'nodemailer'
 
-const SUPER_ADMIN_EMAIL = 'othmanmoh365@gmail.com'
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const ERROR_ALERT_COOLDOWN_MS = 5 * 60 * 1000
-const recentErrorAlerts = new Map()
-let transporter
+const SMTP_HOST = process.env.EMAIL_HOST?.trim() || 'smtp.gmail.com'
+const SMTP_PORT = Number(process.env.EMAIL_PORT || 587)
+const SMTP_USER = process.env.EMAIL_USER?.trim() || ''
+const SMTP_PASS = process.env.EMAIL_PASS?.replace(/\s/g, '') || ''
 
-// Xogtaada tooska ah ee Gmail (Automatic)
-const AUTO_EMAIL_CONFIG = {
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  user: 'othmanmoh365@gmail.com',
-  pass: 'nqaqjqyshlfpoagg' // App Password-kaagii saxda ahaa
-}
-
-function getSenderHeader() {
-  return { name: 'PLAYA Game Zone', address: AUTO_EMAIL_CONFIG.user }
-}
-
-function getTransporter() {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: AUTO_EMAIL_CONFIG.host,
-      port: AUTO_EMAIL_CONFIG.port,
-      secure: AUTO_EMAIL_CONFIG.secure,
-      auth: {
-        user: AUTO_EMAIL_CONFIG.user,
-        pass: AUTO_EMAIL_CONFIG.pass
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000
-    }, {
-      from: getSenderHeader()
-    })
-  }
-  return transporter
-}
+const transporter = nodemailer.createTransport({
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_PORT === 465,
+  requireTLS: SMTP_PORT === 587,
+  auth: { user: SMTP_USER, pass: SMTP_PASS },
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000
+})
 
 function normalizeRecipientEmail(email) {
-  const recipientEmail = String(email || '').trim().toLowerCase()
-  if (!EMAIL_PATTERN.test(recipientEmail)) {
+  const recipient = String(email || '').trim().toLowerCase()
+  if (!EMAIL_PATTERN.test(recipient) || recipient.length > 254) {
     throw new Error('A valid recipient email address is required.')
   }
-  return recipientEmail
+  return recipient
 }
 
-function logDevelopmentEmail({ to, subject, developmentSecret }) {
-  console.info('\n========== PLAYA EMAIL CONSOLE FALLBACK ==========')
-  console.info(`📨 [EMAIL FOR] ${to}`)
-  console.info(`Subject: ${subject}`)
-  if (developmentSecret) {
-    const { type, value } = developmentSecret
-    console.info(`🔐 [${type} FOR] ${to}`)
-    console.info(`🔑 [CODE / TOKEN IS]: ${value}`)
-  }
-  console.info('===================================================\n')
-}
-
-async function sendEmail({ to, subject, text, developmentSecret }) {
-  const recipientEmail = normalizeRecipientEmail(to)
-
-  // Mar walba Console-ka ha la socdo si haddii kale ay u muuqato
-  if (developmentSecret) {
-    logDevelopmentEmail({ to: recipientEmail, subject, developmentSecret })
-  }
-
-  try {
-    const mailer = getTransporter()
-    await mailer.sendMail({
-      from: getSenderHeader(),
-      to: recipientEmail,
-      subject,
-      text
-    })
-  } catch (error) {
-    console.error(`[email] Automatic SMTP delivery failed for ${recipientEmail}:`, error.message)
-    // Halkan uma oggolaanayno inuu 503 keeno oo wuxuu isticmaalayaa console-ka
-  }
-}
-
-function parseClientOrigin(value) {
-  const origin = value.trim()
-  return new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(origin) ? origin : `http://${origin}`)
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character])
 }
 
 function getClientUrl() {
-  let frontendOrigin
-  try {
-    frontendOrigin = process.env.CLIENT_URL ? parseClientOrigin(process.env.CLIENT_URL) : new URL('http://localhost:5173')
-  } catch {
-    frontendOrigin = new URL('http://localhost:5173')
+  const value = process.env.CLIENT_URL?.trim()
+    || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')
+  if (!value) throw new Error('CLIENT_URL is required for email links.')
+
+  const url = new URL(value)
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+    throw new Error('CLIENT_URL must be an HTTP(S) URL without credentials.')
   }
-  frontendOrigin.pathname = '/'
-  frontendOrigin.search = ''
-  frontendOrigin.hash = ''
-  return frontendOrigin
+  if (process.env.NODE_ENV === 'production' &&
+      (url.protocol !== 'https:' || ['localhost', '127.0.0.1'].includes(url.hostname))) {
+    throw new Error('Production CLIENT_URL must be a public HTTPS URL.')
+  }
+
+  url.pathname = '/'
+  url.search = ''
+  url.hash = ''
+  return url
 }
 
-export async function sendVerificationEmail({ email, shopName, token }) {
-  const recipientEmail = normalizeRecipientEmail(email)
-  const verificationToken = String(token || '')
-  if (!verificationToken) throw new Error('An email verification token is required.')
+function logVerificationLinkTarget(url) {
+  console.info(
+    `[email-verification] link target origin=${url.origin} pathname=${url.pathname} port=${url.port || '(default)'}`
+  )
+}
+
+function emailLayout({ preheader, title, content }) {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
+    <title>${escapeHtml(title)}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f3f5fa;color:#172033;font-family:Arial,Helvetica,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preheader)}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5fa;padding:32px 12px;">
+      <tr><td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:16px;overflow:hidden;">
+          <tr><td style="background:#17152b;padding:26px 32px;color:#fff;">
+            <div style="font-size:13px;font-weight:bold;letter-spacing:2px;color:#b8f34a;">PLAYA</div>
+            <div style="margin-top:5px;font-size:12px;letter-spacing:1.6px;color:#fff;">GAME ZONE</div>
+          </td></tr>
+          <tr><td style="padding:34px 32px 38px;">
+            <h1 style="margin:0 0 18px;font-size:25px;line-height:1.3;color:#17152b;">${escapeHtml(title)}</h1>
+            ${content}
+            <p style="margin:28px 0 0;color:#606a7b;font-size:13px;line-height:1.7;">PLAYSTATION GAME ZONE<br>Play. Manage. Grow.</p>
+          </td></tr>
+          <tr><td style="padding:18px 32px;background:#f8f9fc;color:#778094;font-size:12px;line-height:1.6;">
+            This is an automated message from PLAYA GAME ZONE. If you did not request this, you can safely ignore it.
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>`
+}
+
+async function sendRealEmail({ to, subject, text, html }) {
+  const recipient = normalizeRecipientEmail(to)
+  if (!SMTP_USER || !SMTP_PASS) throw new Error('Email SMTP credentials are not configured.')
+  if (!Number.isInteger(SMTP_PORT) || SMTP_PORT < 1 || SMTP_PORT > 65535) {
+    throw new Error('EMAIL_PORT must be a valid TCP port.')
+  }
+
+  const result = await transporter.sendMail({
+    from: { name: 'PLAYA Game Zone', address: normalizeRecipientEmail(SMTP_USER) },
+    to: recipient,
+    subject: String(subject).replace(/[\r\n\x00-\x1f\x7f]/g, ' ').slice(0, 180),
+    text,
+    html
+  })
+
+  const acceptedRecipients = (result.accepted || []).map((value) =>
+    String(typeof value === 'string' ? value : value.address || '').trim().toLowerCase()
+  )
+  if (!acceptedRecipients.includes(recipient) || (result.rejected || []).length > 0) {
+    throw new Error('SMTP provider did not accept the recipient.')
+  }
+  return result
+}
+
+export async function verifyEmailTransport() {
+  if (!SMTP_USER || !SMTP_PASS) throw new Error('Email SMTP credentials are not configured.')
+  if (!Number.isInteger(SMTP_PORT) || SMTP_PORT < 1 || SMTP_PORT > 65535) {
+    throw new Error('EMAIL_PORT must be a valid TCP port.')
+  }
+  await transporter.verify()
+  console.info('[email] SMTP transport is ready.')
+}
+
+export async function sendDiagnosticEmail(email) {
+  const result = await sendRealEmail({
+    to: email,
+    subject: 'PLAYA GAME ZONE email configuration test',
+    text: 'This is a test message confirming that the PLAYA GAME ZONE SMTP provider accepted an email for delivery. It contains no account credentials, verification links, or reset codes.',
+    html: emailLayout({
+      preheader: 'PLAYA GAME ZONE email configuration test.',
+      title: 'Email configuration test',
+      content: '<p style="margin:0;font-size:15px;line-height:1.7;color:#465064;">This test message confirms that the PLAYA GAME ZONE SMTP provider accepted an email for delivery. It contains no account credentials, verification links, or reset codes.</p>'
+    })
+  })
+
+  return { accepted: result.accepted.length > 0 }
+}
+
+export async function sendVerificationEmail({ email, shopName, ownerName, token }) {
+  if (!/^[a-f\d]{64}$/i.test(String(token || ''))) {
+    throw new Error('A valid verification token is required.')
+  }
 
   const verificationUrl = getClientUrl()
-  verificationUrl.searchParams.set('verifyEmail', verificationToken)
+  verificationUrl.searchParams.set('verifyEmail', token)
   verificationUrl.hash = 'login'
+  logVerificationLinkTarget(verificationUrl)
 
-  await sendEmail({
-    to: recipientEmail,
-    subject: 'Verify your PLAYA Game Zone email',
-    text: [
-      `Hello ${shopName},`,
-      '',
-      'Verify your email address to complete your PLAYA Game Zone registration:',
-      verificationUrl.toString(),
-      '',
-      'This secure link expires in 24 hours.'
-    ].join('\n'),
-    developmentSecret: { type: 'EMAIL_VERIFICATION_TOKEN', value: verificationToken }
+  const safeOwner = escapeHtml(ownerName || shopName)
+  const safeShop = escapeHtml(shopName)
+  const link = escapeHtml(verificationUrl.toString())
+  const html = emailLayout({
+    preheader: `Verify your email for ${shopName} on PLAYA GAME ZONE.`,
+    title: 'Welcome to PLAYA GAME ZONE',
+    content: `<p style="margin:0 0 14px;font-size:16px;line-height:1.7;">Hello ${safeOwner},</p>
+      <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#465064;">Your shop <strong>${safeShop}</strong> is nearly ready. Verify this email address to submit it for administrator approval.</p>
+      <p style="margin:26px 0;text-align:center;"><a href="${link}" style="display:inline-block;padding:14px 24px;border-radius:8px;background:#a9e63f;color:#172033;text-decoration:none;font-size:15px;font-weight:bold;">Verify Email</a></p>
+      <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#606a7b;">This secure link expires in 24 hours. If the button does not work, copy and paste this URL into your browser:</p>
+      <p style="margin:0;word-break:break-all;font-size:12px;line-height:1.6;"><a href="${link}" style="color:#5146a5;">${link}</a></p>
+      <p style="margin:22px 0 0;font-size:13px;line-height:1.6;color:#606a7b;">For your security, do not forward this verification email.</p>`
   })
-}
+  const text = [
+    `Hello ${ownerName || shopName},`,
+    '',
+    `Welcome to PLAYA GAME ZONE. Verify the email address for ${shopName} to submit your shop for administrator approval:`,
+    verificationUrl.toString(),
+    '',
+    'This secure link expires in 24 hours. Do not forward this email.'
+  ].join('\n')
 
-export async function sendNewShopNotification({ email, shopName, ownerName, verifiedAt }) {
-  const adminUrl = getClientUrl()
-  adminUrl.hash = 'super-admin'
-  await sendEmail({
-    to: SUPER_ADMIN_EMAIL,
-    subject: `New verified PLAYA shop registration: ${shopName}`,
-    text: [
-      'A new shop has completed email verification and is waiting for your approval.',
-      '',
-      `Shop: ${shopName}`,
-      `Owner: ${ownerName}`,
-      `Email: ${email}`,
-      `Email verified: ${verifiedAt.toISOString()}`,
-      '',
-      `Review pending shops: ${adminUrl.toString()}`
-    ].join('\n')
+  return sendRealEmail({
+    to: email,
+    subject: 'Verify your PLAYA GAME ZONE email',
+    text,
+    html
   })
 }
 
 export async function sendPasswordResetEmail({ email, otp }) {
-  const recipientEmail = normalizeRecipientEmail(email)
-  const otpCode = String(otp || '')
-  if (!/^\d{6}$/.test(otpCode)) throw new Error('A valid 6-digit password reset code is required.')
+  const code = String(otp || '')
+  if (!/^\d{6}$/.test(code)) throw new Error('A valid 6-digit OTP is required.')
 
-  await sendEmail({
-    to: recipientEmail,
-    subject: 'PLAYA Game Zone password reset code',
-    text: `Your PLAYA Game Zone password reset code is ${otpCode}. It expires in 5 minutes.`,
-    developmentSecret: { type: 'OTP', value: otpCode }
+  const html = emailLayout({
+    preheader: 'Your PLAYA GAME ZONE password reset code.',
+    title: 'Reset your password',
+    content: `<p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#465064;">Use this one-time code to reset your PLAYA GAME ZONE password:</p>
+      <p style="margin:20px 0;padding:18px;text-align:center;border-radius:8px;background:#f3f5fa;color:#17152b;font-size:30px;font-weight:bold;letter-spacing:8px;">${code}</p>
+      <p style="margin:0;font-size:14px;line-height:1.7;color:#606a7b;">This code expires in 5 minutes. If you did not request a password reset, ignore this email and keep your password safe.</p>`
+  })
+
+  return sendRealEmail({
+    to: email,
+    subject: 'Your PLAYA GAME ZONE password reset code',
+    text: `Your PLAYA GAME ZONE password reset code is ${code}. It expires in 5 minutes. If you did not request a reset, ignore this email.`,
+    html
+  })
+}
+
+export async function sendNewShopNotification({ email, shopName, ownerName, verifiedAt }) {
+  const adminEmail = normalizeRecipientEmail(process.env.SUPER_ADMIN_EMAIL)
+  const adminUrl = getClientUrl()
+  adminUrl.hash = 'super-admin'
+  const verifiedDate = new Date(verifiedAt)
+  if (Number.isNaN(verifiedDate.getTime())) throw new Error('A valid verification timestamp is required.')
+
+  const safeShop = escapeHtml(shopName)
+  const safeOwner = escapeHtml(ownerName)
+  const safeEmail = escapeHtml(normalizeRecipientEmail(email))
+  const reviewLink = escapeHtml(adminUrl.toString())
+  const html = emailLayout({
+    preheader: `${shopName} has verified its email and is waiting for review.`,
+    title: 'A new shop is ready for review',
+    content: `<p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#465064;">A shop has completed email verification and is waiting for administrator approval.</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:14px;line-height:1.6;">
+        <tr><td style="padding:9px 0;color:#778094;">Shop</td><td style="padding:9px 0;font-weight:bold;">${safeShop}</td></tr>
+        <tr><td style="padding:9px 0;color:#778094;">Owner</td><td style="padding:9px 0;">${safeOwner}</td></tr>
+        <tr><td style="padding:9px 0;color:#778094;">Email</td><td style="padding:9px 0;">${safeEmail}</td></tr>
+        <tr><td style="padding:9px 0;color:#778094;">Verified</td><td style="padding:9px 0;">${escapeHtml(verifiedDate.toISOString())}</td></tr>
+      </table>
+      <p style="margin:26px 0 0;text-align:center;"><a href="${reviewLink}" style="display:inline-block;padding:14px 24px;border-radius:8px;background:#a9e63f;color:#172033;text-decoration:none;font-size:15px;font-weight:bold;">Review pending shops</a></p>`
+  })
+
+  return sendRealEmail({
+    to: adminEmail,
+    subject: 'A new PLAYA GAME ZONE shop is waiting for approval',
+    text: [
+      'A shop has completed email verification and is waiting for administrator approval.',
+      `Shop: ${shopName}`,
+      `Owner: ${ownerName}`,
+      `Email: ${email}`,
+      `Verified: ${verifiedDate.toISOString()}`,
+      `Review pending shops: ${adminUrl.toString()}`
+    ].join('\n'),
+    html
   })
 }
 
 export async function reportCriticalError(error, context = {}) {
-  const normalizedError = error instanceof Error ? error : new Error(String(error))
-  console.error(context.source || 'Critical system error', normalizedError)
+  const details = {
+    name: error instanceof Error ? error.name : 'Error',
+    ...(typeof error?.code === 'string' ? { code: error.code } : {}),
+    ...(Number.isInteger(error?.responseCode) ? { responseCode: error.responseCode } : {})
+  }
+  if (/email|smtp/i.test(context.source || '')) {
+    details.smtpHost = SMTP_HOST
+    details.smtpPort = SMTP_PORT
+  }
+  console.error(context.source || 'Critical system error', details)
 }

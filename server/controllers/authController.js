@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs'
-import { createHash, randomBytes, randomInt } from 'node:crypto'
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
 import Shop from '../models/Shop.js'
@@ -20,7 +20,9 @@ const PENDING_SHOP_MESSAGE = 'Your email is verified, and your shop is waiting f
 const INACTIVE_SHOP_MESSAGE = 'Akoonka dukaankan lama hawlgelin ama waa la hakiyey. Fadlan kala xiriir Mohamed Osman (+251940867287).'
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000
+const EMAIL_VERIFICATION_COOLDOWN_MS = 60 * 1000
 const EMAIL_VERIFICATION_MESSAGE = 'Check your email and follow the verification link before signing in.'
+const GENERIC_RESEND_MESSAGE = 'If an unverified account exists for that email, the request has been processed. Wait a minute before trying again.'
 
 function normalizeIdentity(value) {
   return String(value || '').trim().toLowerCase()
@@ -30,10 +32,20 @@ function hashEmailVerificationToken(token) {
   return createHash('sha256').update(token).digest('hex')
 }
 
+function hashResetOtp(otp) {
+  return createHmac('sha256', process.env.JWT_SECRET).update(otp).digest('hex')
+}
+
+function resetOtpMatches(storedHash, otp) {
+  if (!/^[a-f\d]{64}$/i.test(String(storedHash || ''))) return false
+  const expected = Buffer.from(storedHash, 'hex')
+  const actual = Buffer.from(hashResetOtp(otp), 'hex')
+  return expected.length === actual.length && timingSafeEqual(expected, actual)
+}
+
 function clearResetOtp(user) {
   user.resetOtp = null
   user.resetOtpExpires = null
-  user.resetOtpRequestedAt = null
   user.resetOtpAttempts = 0
 }
 
@@ -55,10 +67,6 @@ export async function requestPasswordReset(req, res, next) {
       return res.status(400).json({ message: 'Enter a valid email address.' })
     }
 
-    if (process.env.NODE_ENV === 'production' && (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS)) {
-      return res.status(503).json({ message: 'Password reset is temporarily unavailable. Please contact your administrator.' })
-    }
-
     const user = await User.findOne({ email }).select('+resetOtpRequestedAt')
     if (!user) return res.json({ message: GENERIC_RESET_MESSAGE })
 
@@ -69,7 +77,7 @@ export async function requestPasswordReset(req, res, next) {
     }
 
     const otp = String(randomInt(0, 1000000)).padStart(6, '0')
-    user.resetOtp = otp
+    user.resetOtp = hashResetOtp(otp)
     user.resetOtpExpires = new Date(now + RESET_OTP_TTL_MS)
     user.resetOtpRequestedAt = new Date(now)
     user.resetOtpAttempts = 0
@@ -79,10 +87,14 @@ export async function requestPasswordReset(req, res, next) {
       const recipientEmail = normalizeIdentity(user.email)
       await sendPasswordResetEmail({ email: recipientEmail, otp })
     } catch (deliveryError) {
-      void reportCriticalError(deliveryError, { source: 'Password reset email delivery' })
       clearResetOtp(user)
-      await user.save()
-      return res.status(503).json({ message: 'Unable to send a verification code right now. Please try again later.' })
+      try {
+        await user.save()
+      } catch (cleanupError) {
+        await reportCriticalError(cleanupError, { source: 'Password reset OTP cleanup after delivery failure' })
+      }
+      await reportCriticalError(deliveryError, { source: 'Password reset email delivery' })
+      return res.status(503).json({ message: 'Unable to send a password reset code right now. Please try again later.' })
     }
 
     return res.json({ message: GENERIC_RESET_MESSAGE })
@@ -109,7 +121,7 @@ export async function resetPasswordWithOtp(req, res, next) {
       return res.status(400).json({ message: 'Invalid or expired verification code. Request a new code and try again.' })
     }
 
-    if (String(user.resetOtp) !== String(otp)) {
+    if (!resetOtpMatches(user.resetOtp, otp)) {
       user.resetOtpAttempts = (user.resetOtpAttempts || 0) + 1
       if (user.resetOtpAttempts >= RESET_OTP_MAX_ATTEMPTS) clearResetOtp(user)
       await user.save()
@@ -119,6 +131,7 @@ export async function resetPasswordWithOtp(req, res, next) {
     const passwordHash = await bcrypt.hash(newPassword, 12)
     user.passwordHash = passwordHash
     user.pinHash = passwordHash
+    user.tokenVersion = (user.tokenVersion || 0) + 1
     user.loginAttempts = 0
     user.lockoutUntil = null
     clearResetOtp(user)
@@ -134,15 +147,17 @@ export async function registerShop(req, res, next) {
   let shop
   try {
     const name = String(req.body?.storeName || '').trim()
+    const ownerName = String(req.body?.name || '').trim()
     const email = normalizeIdentity(req.body?.email)
     const password = String(req.body?.password || '')
-    if (!name || name.length > 120 || email.length > 254 || !EMAIL_PATTERN.test(email) || password.length < 10 || password.length > 128) {
-      return res.status(400).json({ message: 'Enter a store name, valid email address, and password (10-128 characters).' })
+    if (name.length < 2 || name.length > 120 || ownerName.length < 2 || ownerName.length > 100 || email.length > 254 || !EMAIL_PATTERN.test(email) || password.length < 10 || password.length > 128) {
+      return res.status(400).json({ message: 'Enter a store name, owner name, valid email address, and password (10-128 characters).' })
     }
     if (await User.exists({ email })) {
       return res.status(409).json({ message: 'That email address is already registered.' })
     }
     const passwordHash = await bcrypt.hash(password, 12)
+    const now = Date.now()
     shop = await Shop.create({
       name,
       email,
@@ -151,32 +166,40 @@ export async function registerShop(req, res, next) {
       license: { status: 'locked', plan: 'Pending approval', expiresAt: null }
     })
     const verificationToken = randomBytes(32).toString('hex')
-    const now = Date.now()
     const user = await User.create({
-      name,
+      name: ownerName,
       email,
       role: 'Admin',
       shopId: shop._id,
       emailVerified: false,
       emailVerificationTokenHash: hashEmailVerificationToken(verificationToken),
       emailVerificationExpiresAt: new Date(now + EMAIL_VERIFICATION_TTL_MS),
+      emailVerificationRequestedAt: new Date(now),
       passwordHash,
       pinHash: passwordHash
     })
+
     try {
-      await sendVerificationEmail({ email, shopName: name, token: verificationToken })
+      await sendVerificationEmail({ email, shopName: name, ownerName, token: verificationToken })
     } catch (deliveryError) {
-      void reportCriticalError(deliveryError, { source: 'Registration verification email delivery' })
+      await reportCriticalError(deliveryError, { source: 'Registration verification email delivery' })
       return res.status(503).json({
         code: 'VERIFICATION_EMAIL_FAILED',
-        message: 'Your account was created, but we could not send the verification email. Use the resend option to try again.'
+        message: 'Your account was created, but we could not send the verification email. Wait a minute, then use the resend option to try again.'
       })
     }
+
     return res.status(201).json({
       message: 'Registration started. Check your email and follow the verification link to continue.'
     })
   } catch (error) {
-    if (shop?._id) await Shop.deleteOne({ _id: shop._id }).catch(() => {})
+    if (shop?._id) {
+      try {
+        await Shop.deleteOne({ _id: shop._id })
+      } catch (cleanupError) {
+        await reportCriticalError(cleanupError, { source: 'Registration shop cleanup' })
+      }
+    }
     if (error.code === 11000) return res.status(409).json({ message: 'That email address is already registered.' })
     return next(error)
   }
@@ -190,22 +213,39 @@ export async function resendVerificationEmail(req, res, next) {
     }
 
     const user = await User.findOne({ email, emailVerified: false })
-      .select('+emailVerificationTokenHash +emailVerificationExpiresAt')
+      .select('+emailVerificationTokenHash +emailVerificationExpiresAt +emailVerificationRequestedAt')
     if (!user) {
-      return res.json({ message: 'If an unverified account exists for that email, a verification link has been sent.' })
+      return res.json({ message: GENERIC_RESEND_MESSAGE })
+    }
+
+    const now = Date.now()
+    const lastRequestedAt = user.emailVerificationRequestedAt
+      ? new Date(user.emailVerificationRequestedAt).getTime()
+      : 0
+    if (lastRequestedAt > now - EMAIL_VERIFICATION_COOLDOWN_MS) {
+      return res.json({ message: GENERIC_RESEND_MESSAGE })
     }
 
     const verificationToken = randomBytes(32).toString('hex')
     user.emailVerificationTokenHash = hashEmailVerificationToken(verificationToken)
-    user.emailVerificationExpiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS)
+    user.emailVerificationExpiresAt = new Date(now + EMAIL_VERIFICATION_TTL_MS)
+    user.emailVerificationRequestedAt = new Date(now)
     await user.save()
+
     try {
-      await sendVerificationEmail({ email: user.email, shopName: user.name, token: verificationToken })
+      const shop = await Shop.findById(user.shopId).select('name')
+      await sendVerificationEmail({
+        email: user.email,
+        shopName: shop?.name || user.name,
+        ownerName: user.name,
+        token: verificationToken
+      })
     } catch (deliveryError) {
-      void reportCriticalError(deliveryError, { source: 'Resent verification email delivery' })
-      return res.status(503).json({ message: 'Unable to send the verification email right now. Please try again later.' })
+      await reportCriticalError(deliveryError, { source: 'Resent verification email delivery' })
+      return res.status(503).json({ message: 'Unable to send a verification email right now. Please try again later.' })
     }
-    return res.json({ message: 'A new verification link has been sent. Check your email.' })
+
+    return res.json({ message: GENERIC_RESEND_MESSAGE })
   } catch (error) {
     return next(error)
   }
@@ -258,7 +298,7 @@ export async function verifyEmail(req, res, next) {
         verifiedAt: now
       })
     } catch (deliveryError) {
-      void reportCriticalError(deliveryError, { source: 'Verified shop notification email delivery' })
+      await reportCriticalError(deliveryError, { source: 'Verified shop notification email delivery' })
     }
 
     return res.json({
@@ -291,11 +331,10 @@ export async function login(req, res, next) {
       return next(new Error('JWT_SECRET is not configured.'))
     }
 
-    // ⚡ SUPER-ADMIN BYPASS (Hubinta Email-ka iyo Password-ka .env)
-    const envSuperAdminEmail = (process.env.SUPER_ADMIN_EMAIL || process.env.SUPER_ADMIN_USERNAME || 'mohamed094osman@gmail.com').toLowerCase()
-    const envSuperAdminPassword = process.env.SUPER_ADMIN_PASSWORD || 'mohamed12345'
+    const envSuperAdminEmail = normalizeIdentity(process.env.SUPER_ADMIN_EMAIL || process.env.SUPER_ADMIN_USERNAME)
+    const envSuperAdminPassword = process.env.SUPER_ADMIN_PASSWORD || ''
 
-    if (identity === envSuperAdminEmail && credential === envSuperAdminPassword) {
+    if (envSuperAdminEmail && envSuperAdminPassword && identity === envSuperAdminEmail && credential === envSuperAdminPassword) {
       const superAdminUser = {
         _id: 'superadmin_static_id',
         name: 'Mohamed Osman (Super-Admin)',
@@ -311,7 +350,8 @@ export async function login(req, res, next) {
           sub: superAdminUser._id,
           role: 'superadmin',
           email: superAdminUser.email,
-          shopId: null
+          shopId: null,
+          ver: 0
         },
         process.env.JWT_SECRET,
         { algorithm: 'HS256', expiresIn: '12h' }
@@ -324,7 +364,6 @@ export async function login(req, res, next) {
       })
     }
 
-    // ⚡ DUKAAMADA CAADIGA AH (Database Search by Email / Username)
     const user = await User.findOne({ $or: [{ email: identity }, { username: identity }] }).select('+passwordHash +pinHash')
     if (!user) {
       return res.status(401).json({ message: 'Invalid email address or password.' })
@@ -361,7 +400,7 @@ export async function login(req, res, next) {
 
       if (shouldLock) {
         return res.status(423).json({
-          message: 'Too many failed attempts. Account locked for 120 seconds.',
+          message: `Too many failed attempts. Account locked for ${Math.ceil(LOCKOUT_DURATION_MS / 1000)} seconds.`,
           lockoutUntil: user.lockoutUntil.toISOString(),
           remainingSeconds: Math.ceil(LOCKOUT_DURATION_MS / 1000)
         })
@@ -399,7 +438,8 @@ export async function login(req, res, next) {
         sub: String(user._id),
         role: user.role,
         email: user.email,
-        shopId: user.shopId ? String(user.shopId) : null
+        shopId: user.shopId ? String(user.shopId) : null,
+        ver: user.tokenVersion || 0
       },
       process.env.JWT_SECRET,
       {

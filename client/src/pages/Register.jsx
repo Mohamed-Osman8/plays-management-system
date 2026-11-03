@@ -6,7 +6,7 @@ import BrandMark from '../components/BrandMark'
 
 export default function Register() {
   const { setRoute } = useApp()
-  const [form, setForm] = useState({ storeName: '', email: '', password: '' })
+  const [form, setForm] = useState({ storeName: '', name: '', email: '', password: '' })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [busy, setBusy] = useState(false)
@@ -23,6 +23,7 @@ export default function Register() {
       const result = await registerShop({
         ...form,
         storeName: form.storeName.trim(),
+        name: form.name.trim(),
         email: form.email.trim().toLowerCase(),
       })
       setCanResend(true)
@@ -69,6 +70,7 @@ export default function Register() {
         <h1>Create your game zone</h1>
         <p>Verify your email first. The platform administrator must then approve your shop before dashboard access is available.</p>
         <label>Store name<input value={form.storeName} onChange={(event) => setForm({ ...form, storeName: event.target.value })} minLength="2" maxLength="120" autoComplete="organization" required disabled={busy || Boolean(success)} /></label>
+        <label>Owner name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} minLength="2" maxLength="100" autoComplete="name" required disabled={busy || Boolean(success)} /></label>
         <label>Email address<input type="email" autoComplete="email" maxLength="254" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required disabled={busy || Boolean(success)} /></label>
         <label>Password<input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength="10" maxLength="128" required disabled={busy || Boolean(success)} /></label>
         {error && <small className="form-error" role="alert">{error}</small>}

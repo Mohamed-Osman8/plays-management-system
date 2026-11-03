@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? 'http://localhost:5001/api' : '')).replace(/\/$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? '/api' : '')).replace(/\/$/, '')
 const TOKEN_KEYS = ['playstation-game-zone-token', 'token', 'authToken']
 
 function getApiUrl(path) {
@@ -39,13 +39,32 @@ async function request(path, options = {}) {
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  const response = await fetch(getApiUrl(path), {
-    ...options,
-    headers,
-    cache: 'no-store',
-  })
+  const apiUrl = getApiUrl(path)
+  const isVerificationRequest = path === '/auth/verify-email'
+  if (isVerificationRequest) {
+    console.info(`[email-verification] API request destination=${apiUrl.origin}${apiUrl.pathname}`)
+  }
+  let response
+  try {
+    response = await fetch(apiUrl, {
+      ...options,
+      headers,
+      cache: 'no-store',
+    })
+  } catch (cause) {
+    const apiOrigin = apiUrl.origin
+    const error = new Error(
+      `Could not reach the PLAYA server at ${apiOrigin}. Confirm the backend is running and allows this frontend origin.`
+    )
+    error.code = 'API_UNREACHABLE'
+    error.cause = cause
+    throw error
+  }
 
   const body = await response.json().catch(() => ({}))
+  if (isVerificationRequest) {
+    console.info(`[email-verification] API response status=${response.status}`)
+  }
   if (!response.ok) {
     const error = new Error(body.message || 'Request failed.')
     Object.assign(error, body)

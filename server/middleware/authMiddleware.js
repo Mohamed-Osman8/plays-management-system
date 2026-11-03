@@ -30,6 +30,9 @@ export async function verifyStaff(req, res, next) {
   try {
     const user = await User.findById(claims.sub)
     if (!user || !normalizeRole(user.role)) return res.status(401).json({ message: 'Invalid staff identity.' })
+    if ((claims.ver ?? 0) !== (user.tokenVersion || 0)) {
+      return res.status(401).json({ message: 'Your session has expired. Please sign in again.' })
+    }
     if (!user.emailVerified) {
       return res.status(403).json({ code: 'EMAIL_VERIFICATION_REQUIRED', message: EMAIL_VERIFICATION_MESSAGE })
     }

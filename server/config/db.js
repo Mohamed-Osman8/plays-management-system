@@ -14,12 +14,17 @@ export async function connectDatabase() {
     })
     console.log('MongoDB connected')
   } catch (error) {
+    console.error('[database] connection failed', {
+      name: error instanceof Error ? error.name : 'Error',
+      ...(typeof error?.code === 'string' || Number.isInteger(error?.code) ? { code: error.code } : {}),
+      ...(typeof error?.codeName === 'string' ? { codeName: error.codeName } : {})
+    })
     if (error?.code === 8000 || error?.codeName === 'AtlasError') {
       throw new Error(
         'MongoDB Atlas authentication failed. Check the database username, password, and URL-encoded special characters in MONGODB_URI.'
       )
     }
 
-    throw new Error(`MongoDB connection failed: ${error.message}`)
+    throw new Error('MongoDB connection failed. Check MONGODB_URI and database network access.')
   }
 }
