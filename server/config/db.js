@@ -2,10 +2,12 @@
 import mongoose from 'mongoose'
 
 export async function connectDatabase() {
-  const uri = process.env.MONGO_URI?.trim()
+  const uri =
+    process.env.MONGO_URI?.trim() ||
+    process.env.MONGODB_URI?.trim()
 
   if (!uri) {
-    throw new Error('MONGO_URI is not configured')
+    throw new Error('MONGO_URI or MONGODB_URI is not configured')
   }
 
   try {
@@ -25,12 +27,12 @@ export async function connectDatabase() {
 
     if (error?.code === 8000 || error?.codeName === 'AtlasError') {
       throw new Error(
-        'MongoDB Atlas authentication failed. Check MONGO_URI username and password.'
+        'MongoDB Atlas authentication failed. Check database credentials.'
       )
     }
 
     throw new Error(
-      'MongoDB connection failed. Check MONGO_URI and Atlas Network Access.'
+      'MongoDB connection failed. Check connection URI and Atlas Network Access.'
     )
   }
 }
