@@ -1,27 +1,19 @@
-import nodemailer from 'nodemailer'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const SMTP_HOST = process.env.EMAIL_HOST?.trim() || 'smtp.gmail.com'
-const SMTP_PORT = Number(process.env.EMAIL_PORT || 587)
-const SMTP_USER = process.env.EMAIL_USER?.trim() || ''
-const SMTP_PASS = process.env.EMAIL_PASS?.replace(/\s/g, '') || ''
 
-const transporter = nodemailer.createTransport({
-  host: SMTP_HOST,
-  port: SMTP_PORT,
-  secure: SMTP_PORT === 465,
-  requireTLS: SMTP_PORT === 587,
-  auth: { user: SMTP_USER, pass: SMTP_PASS },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000
-})
+const BREVO_API_KEY = process.env.BREVO_API_KEY?.trim() || ''
+const BREVO_SENDER_EMAIL =
+  process.env.BREVO_SENDER_EMAIL?.trim().toLowerCase() || ''
+
+const BREVO_API_URL = 'https://api.brevo.com/v3'
 
 function normalizeRecipientEmail(email) {
   const recipient = String(email || '').trim().toLowerCase()
+
   if (!EMAIL_PATTERN.test(recipient) || recipient.length > 254) {
     throw new Error('A valid recipient email address is required.')
   }
+
   return recipient
 }
 
@@ -37,21 +29,38 @@ function escapeHtml(value) {
 
 function getClientUrl() {
   const value = process.env.CLIENT_URL?.trim()
-    || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')
-  if (!value) throw new Error('CLIENT_URL is required for email links.')
+    || (process.env.NODE_ENV === 'production'
+      ? ''
+      : 'http://localhost:5173')
+
+  if (!value) {
+    throw new Error('CLIENT_URL is required for email links.')
+  }
 
   const url = new URL(value)
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+
+  if (
+    !['http:', 'https:'].includes(url.protocol) ||
+    url.username ||
+    url.password
+  ) {
     throw new Error('CLIENT_URL must be an HTTP(S) URL without credentials.')
   }
-  if (process.env.NODE_ENV === 'production' &&
-      (url.protocol !== 'https:' || ['localhost', '127.0.0.1'].includes(url.hostname))) {
+
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (
+      url.protocol !== 'https:' ||
+      ['localhost', '127.0.0.1'].includes(url.hostname)
+    )
+  ) {
     throw new Error('Production CLIENT_URL must be a public HTTPS URL.')
   }
 
   url.pathname = '/'
   url.search = ''
   url.hash = ''
+
   return url
 }
 
@@ -73,22 +82,30 @@ function emailLayout({ preheader, title, content }) {
   <body style="margin:0;padding:0;background:#f3f5fa;color:#172033;font-family:Arial,Helvetica,sans-serif;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preheader)}</div>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5fa;padding:32px 12px;">
-      <tr><td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:16px;overflow:hidden;">
-          <tr><td style="background:#17152b;padding:26px 32px;color:#fff;">
-            <div style="font-size:13px;font-weight:bold;letter-spacing:2px;color:#b8f34a;">PLAYA</div>
-            <div style="margin-top:5px;font-size:12px;letter-spacing:1.6px;color:#fff;">GAME ZONE</div>
-          </td></tr>
-          <tr><td style="padding:34px 32px 38px;">
-            <h1 style="margin:0 0 18px;font-size:25px;line-height:1.3;color:#17152b;">${escapeHtml(title)}</h1>
-            ${content}
-            <p style="margin:28px 0 0;color:#606a7b;font-size:13px;line-height:1.7;">PLAYSTATION GAME ZONE<br>Play. Manage. Grow.</p>
-          </td></tr>
-          <tr><td style="padding:18px 32px;background:#f8f9fc;color:#778094;font-size:12px;line-height:1.6;">
-            This is an automated message from PLAYA GAME ZONE. If you did not request this, you can safely ignore it.
-          </td></tr>
-        </table>
-      </td></tr>
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:16px;overflow:hidden;">
+            <tr>
+              <td style="background:#17152b;padding:26px 32px;color:#fff;">
+                <div style="font-size:13px;font-weight:bold;letter-spacing:2px;color:#b8f34a;">PLAYA</div>
+                <div style="margin-top:5px;font-size:12px;letter-spacing:1.6px;color:#fff;">GAME ZONE</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:34px 32px 38px;">
+                <h1 style="margin:0 0 18px;font-size:25px;line-height:1.3;color:#17152b;">${escapeHtml(title)}</h1>
+                ${content}
+                <p style="margin:28px 0 0;color:#606a7b;font-size:13px;line-height:1.7;">PLAYSTATION GAME ZONE<br>Play. Manage. Grow.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 32px;background:#f8f9fc;color:#778094;font-size:12px;line-height:1.6;">
+                This is an automated message from PLAYA GAME ZONE. If you did not request this, you can safely ignore it.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
     </table>
   </body>
 </html>`
@@ -96,65 +113,117 @@ function emailLayout({ preheader, title, content }) {
 
 async function sendRealEmail({ to, subject, text, html }) {
   const recipient = normalizeRecipientEmail(to)
-  if (!SMTP_USER || !SMTP_PASS) throw new Error('Email SMTP credentials are not configured.')
-  if (!Number.isInteger(SMTP_PORT) || SMTP_PORT < 1 || SMTP_PORT > 65535) {
-    throw new Error('EMAIL_PORT must be a valid TCP port.')
+
+  if (!BREVO_API_KEY || !BREVO_SENDER_EMAIL) {
+    throw new Error('Brevo email configuration is missing.')
   }
 
-  const result = await transporter.sendMail({
-    from: { name: 'PLAYA Game Zone', address: normalizeRecipientEmail(SMTP_USER) },
-    to: recipient,
-    subject: String(subject).replace(/[\r\n\x00-\x1f\x7f]/g, ' ').slice(0, 180),
-    text,
-    html
+  const response = await fetch(`${BREVO_API_URL}/smtp/email`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'api-key': BREVO_API_KEY,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: {
+        name: 'PLAYA Game Zone',
+        email: normalizeRecipientEmail(BREVO_SENDER_EMAIL)
+      },
+      to: [{ email: recipient }],
+      subject: String(subject)
+        .replace(/[\r\n\x00-\x1f\x7f]/g, ' ')
+        .slice(0, 180),
+      textContent: text,
+      htmlContent: html
+    }),
+    signal: AbortSignal.timeout(20000)
   })
 
-  const acceptedRecipients = (result.accepted || []).map((value) =>
-    String(typeof value === 'string' ? value : value.address || '').trim().toLowerCase()
-  )
-  if (!acceptedRecipients.includes(recipient) || (result.rejected || []).length > 0) {
-    throw new Error('SMTP provider did not accept the recipient.')
+  if (!response.ok) {
+    const errorText = await response.text()
+
+    console.error('[email] Brevo API rejected email:', {
+      status: response.status,
+      message: errorText.slice(0, 500)
+    })
+
+    throw new Error(`Brevo email delivery failed (${response.status}).`)
   }
-  return result
+
+  const result = await response.json()
+
+  console.info('[email] Brevo accepted email:', {
+    messageId: result.messageId,
+    recipient
+  })
+
+  return {
+    accepted: [recipient],
+    rejected: [],
+    messageId: result.messageId
+  }
 }
 
 export async function verifyEmailTransport() {
-  if (!SMTP_USER || !SMTP_PASS) throw new Error('Email SMTP credentials are not configured.')
-  if (!Number.isInteger(SMTP_PORT) || SMTP_PORT < 1 || SMTP_PORT > 65535) {
-    throw new Error('EMAIL_PORT must be a valid TCP port.')
+  if (!BREVO_API_KEY || !BREVO_SENDER_EMAIL) {
+    throw new Error('Brevo email configuration is missing.')
   }
-  await transporter.verify()
-  console.info('[email] SMTP transport is ready.')
+
+  normalizeRecipientEmail(BREVO_SENDER_EMAIL)
+
+  const response = await fetch(`${BREVO_API_URL}/account`, {
+    method: 'GET',
+    headers: {
+      accept: 'application/json',
+      'api-key': BREVO_API_KEY
+    },
+    signal: AbortSignal.timeout(15000)
+  })
+
+  if (!response.ok) {
+    throw new Error(`Brevo API verification failed (${response.status}).`)
+  }
+
+  console.info('[email] Brevo API connection is ready.')
 }
 
 export async function sendDiagnosticEmail(email) {
   const result = await sendRealEmail({
     to: email,
     subject: 'PLAYA GAME ZONE email configuration test',
-    text: 'This is a test message confirming that the PLAYA GAME ZONE SMTP provider accepted an email for delivery. It contains no account credentials, verification links, or reset codes.',
+    text: 'This is a test message confirming that the PLAYA GAME ZONE email provider accepted an email for delivery. It contains no account credentials, verification links, or reset codes.',
     html: emailLayout({
       preheader: 'PLAYA GAME ZONE email configuration test.',
       title: 'Email configuration test',
-      content: '<p style="margin:0;font-size:15px;line-height:1.7;color:#465064;">This test message confirms that the PLAYA GAME ZONE SMTP provider accepted an email for delivery. It contains no account credentials, verification links, or reset codes.</p>'
+      content: '<p style="margin:0;font-size:15px;line-height:1.7;color:#465064;">This test message confirms that the PLAYA GAME ZONE email provider accepted an email for delivery. It contains no account credentials, verification links, or reset codes.</p>'
     })
   })
 
   return { accepted: result.accepted.length > 0 }
 }
 
-export async function sendVerificationEmail({ email, shopName, ownerName, token }) {
+export async function sendVerificationEmail({
+  email,
+  shopName,
+  ownerName,
+  token
+}) {
   if (!/^[a-f\d]{64}$/i.test(String(token || ''))) {
     throw new Error('A valid verification token is required.')
   }
 
   const verificationUrl = getClientUrl()
+
   verificationUrl.searchParams.set('verifyEmail', token)
   verificationUrl.hash = 'login'
+
   logVerificationLinkTarget(verificationUrl)
 
   const safeOwner = escapeHtml(ownerName || shopName)
   const safeShop = escapeHtml(shopName)
   const link = escapeHtml(verificationUrl.toString())
+
   const html = emailLayout({
     preheader: `Verify your email for ${shopName} on PLAYA GAME ZONE.`,
     title: 'Welcome to PLAYA GAME ZONE',
@@ -165,6 +234,7 @@ export async function sendVerificationEmail({ email, shopName, ownerName, token 
       <p style="margin:0;word-break:break-all;font-size:12px;line-height:1.6;"><a href="${link}" style="color:#5146a5;">${link}</a></p>
       <p style="margin:22px 0 0;font-size:13px;line-height:1.6;color:#606a7b;">For your security, do not forward this verification email.</p>`
   })
+
   const text = [
     `Hello ${ownerName || shopName},`,
     '',
@@ -184,7 +254,10 @@ export async function sendVerificationEmail({ email, shopName, ownerName, token 
 
 export async function sendPasswordResetEmail({ email, otp }) {
   const code = String(otp || '')
-  if (!/^\d{6}$/.test(code)) throw new Error('A valid 6-digit OTP is required.')
+
+  if (!/^\d{6}$/.test(code)) {
+    throw new Error('A valid 6-digit OTP is required.')
+  }
 
   const html = emailLayout({
     preheader: 'Your PLAYA GAME ZONE password reset code.',
@@ -202,17 +275,28 @@ export async function sendPasswordResetEmail({ email, otp }) {
   })
 }
 
-export async function sendNewShopNotification({ email, shopName, ownerName, verifiedAt }) {
+export async function sendNewShopNotification({
+  email,
+  shopName,
+  ownerName,
+  verifiedAt
+}) {
   const adminEmail = normalizeRecipientEmail(process.env.SUPER_ADMIN_EMAIL)
+
   const adminUrl = getClientUrl()
   adminUrl.hash = 'super-admin'
+
   const verifiedDate = new Date(verifiedAt)
-  if (Number.isNaN(verifiedDate.getTime())) throw new Error('A valid verification timestamp is required.')
+
+  if (Number.isNaN(verifiedDate.getTime())) {
+    throw new Error('A valid verification timestamp is required.')
+  }
 
   const safeShop = escapeHtml(shopName)
   const safeOwner = escapeHtml(ownerName)
   const safeEmail = escapeHtml(normalizeRecipientEmail(email))
   const reviewLink = escapeHtml(adminUrl.toString())
+
   const html = emailLayout({
     preheader: `${shopName} has verified its email and is waiting for review.`,
     title: 'A new shop is ready for review',
@@ -245,11 +329,14 @@ export async function reportCriticalError(error, context = {}) {
   const details = {
     name: error instanceof Error ? error.name : 'Error',
     ...(typeof error?.code === 'string' ? { code: error.code } : {}),
-    ...(Number.isInteger(error?.responseCode) ? { responseCode: error.responseCode } : {})
+    ...(Number.isInteger(error?.responseCode)
+      ? { responseCode: error.responseCode }
+      : {})
   }
+
   if (/email|smtp/i.test(context.source || '')) {
-    details.smtpHost = SMTP_HOST
-    details.smtpPort = SMTP_PORT
+    details.provider = 'Brevo API'
   }
+
   console.error(context.source || 'Critical system error', details)
 }
