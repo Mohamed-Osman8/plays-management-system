@@ -165,6 +165,7 @@ async function sendRealEmail({ to, subject, text, html }) {
   }
 }
 
+
 export async function verifyEmailTransport() {
   if (!BREVO_API_KEY || !BREVO_SENDER_EMAIL) {
     throw new Error('Brevo email configuration is missing.')
@@ -172,21 +173,45 @@ export async function verifyEmailTransport() {
 
   normalizeRecipientEmail(BREVO_SENDER_EMAIL)
 
-  const response = await fetch(`${BREVO_API_URL}/account`, {
-    method: 'GET',
-    headers: {
-      accept: 'application/json',
-      'api-key': BREVO_API_KEY
-    },
-    signal: AbortSignal.timeout(15000)
-  })
+  let response
+
+  try {
+    response = await fetch(`${BREVO_API_URL}/account`, {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        'api-key': BREVO_API_KEY
+      },
+      signal: AbortSignal.timeout(15000)
+    })
+  } catch (error) {
+    console.error('[email] Brevo connection error:', {
+      name: error.name,
+      message: error.message
+    })
+    throw error
+  }
 
   if (!response.ok) {
+    const errorBody = await response.text()
+
+    console.error('[email] Brevo API verification failed:', {
+      status: response.status,
+      response: errorBody.slice(0, 1000)
+    })
+
     throw new Error(`Brevo API verification failed (${response.status}).`)
   }
 
-  console.info('[email] Brevo API connection is ready.')
+  const account = await response.json()
+
+  console.info('[email] Brevo API connection is ready.', {
+    email: account.email || 'Account verified'
+  })
+
+  return true
 }
+
 
 export async function sendDiagnosticEmail(email) {
   const result = await sendRealEmail({
