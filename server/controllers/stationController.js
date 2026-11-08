@@ -2,6 +2,15 @@ import Station from '../models/Station.js'
 import PlaySession from '../models/PlaySession.js'
 import mongoose from 'mongoose'
 
+function normalizeStationType(value) {
+  const rawType = String(value || '').trim().toLowerCase()
+  if (['ps4', 'playstation 4'].includes(rawType)) return 'PS4'
+  if (['ps5', 'playstation 5'].includes(rawType)) return 'PS5'
+  if (rawType === 'vip') return 'VIP'
+  if (rawType === 'other') return 'Other'
+  return ''
+}
+
 export async function listStations(_req, res, next) {
   try {
     return res.json({ stations: await Station.find().sort({ name: 1 }) })
@@ -37,11 +46,9 @@ export async function updateStationHealth(req, res, next) {
 export async function createStation(req, res, next) {
   try {
     const { name, hourlyRate, status } = req.body
-    const rawType = String(req.body.type || '').trim().toLowerCase()
-    const type = rawType === 'ps4' || rawType === 'playstation 4' ? 'PS4'
-      : rawType === 'ps5' || rawType === 'playstation 5' ? 'PS5' : ''
+    const type = normalizeStationType(req.body.type)
     if (!String(name || '').trim() || !type) {
-      return res.status(400).json({ message: 'A station name and type (PS4 or PS5) are required.' })
+      return res.status(400).json({ message: 'A station name and type (PS4, PS5, VIP, or Other) are required.' })
     }
     if (status !== undefined && !['available', 'reserved', 'maintenance'].includes(status)) {
       return res.status(400).json({ message: 'New stations must be available, reserved, or in maintenance.' })
@@ -63,10 +70,8 @@ export async function updateStation(req, res, next) {
     }
     if (!Object.keys(updates).length) return res.status(400).json({ message: 'At least one station field is required.' })
     if (updates.type !== undefined) {
-      const rawType = String(updates.type).trim().toLowerCase()
-      updates.type = rawType === 'ps4' || rawType === 'playstation 4' ? 'PS4'
-        : rawType === 'ps5' || rawType === 'playstation 5' ? 'PS5' : ''
-      if (!updates.type) return res.status(400).json({ message: 'Station type must be PlayStation 4/PS4 or PlayStation 5/PS5.' })
+      updates.type = normalizeStationType(updates.type)
+      if (!updates.type) return res.status(400).json({ message: 'Station type must be PS4, PS5, VIP, or Other.' })
     }
     const station = await Station.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true })
     if (!station) return res.status(404).json({ message: 'Station not found.' })

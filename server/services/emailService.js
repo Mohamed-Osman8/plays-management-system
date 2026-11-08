@@ -300,6 +300,38 @@ export async function sendPasswordResetEmail({ email, otp }) {
   })
 }
 
+export async function sendBookingNotification({ booking, shop, event }) {
+  const eventCopy = {
+    created: ['Reservation request received', 'Your reservation request has been received and is awaiting the shop team.'],
+    confirmed: ['Reservation confirmed', 'Your reservation has been confirmed. We look forward to seeing you.'],
+    cancelled: ['Reservation cancelled', 'Your reservation has been cancelled. Contact the shop if you need help.'],
+    updated: ['Reservation updated', 'Your reservation details or status have changed.']
+  }[event]
+  if (!eventCopy) throw new Error('Unsupported reservation notification event.')
+
+  const details = [
+    `Reference: ${booking.confirmation}`,
+    `Shop: ${shop?.name || 'PLAYA Game Zone'}`,
+    `Station: ${booking.stationName}`,
+    `Type: ${booking.consoleType}`,
+    `Date: ${booking.date}`,
+    `Start time: ${booking.arrivalTime}`,
+    `Duration: ${booking.durationMinutes} minutes`,
+    `Estimated total: ${booking.totalPrice}`
+  ]
+  const content = `<p style="font-size:15px;line-height:1.7;color:#435067;">${escapeHtml(eventCopy[1])}</p>
+    <div style="padding:18px;background:#f8f9fc;border-radius:12px;color:#172033;font-size:14px;line-height:1.8;">
+      ${details.map((line) => `<div>${escapeHtml(line)}</div>`).join('')}
+    </div>`
+
+  return sendRealEmail({
+    to: booking.customerEmail,
+    subject: `${eventCopy[0]} · ${booking.confirmation}`,
+    text: `${eventCopy[1]}\n\n${details.join('\n')}`,
+    html: emailLayout({ preheader: eventCopy[0], title: eventCopy[0], content })
+  })
+}
+
 export async function sendNewShopNotification({
   email,
   shopName,

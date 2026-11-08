@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { cancelSession, endSession, listSessions, pauseSession, resumeSession, reverseSession, startSession, transferSession } from '../controllers/sessionController.js'
+import { cancelSession, endSession, listSessions, pauseSession, resumeSession, reverseSession, startSession, transferSession, updateSessionPayment } from '../controllers/sessionController.js'
 import { verifyAdmin, verifyCashierOrAdmin, verifyStaff } from '../middleware/authMiddleware.js'
 import { verifyLicense } from '../middleware/license.js'
 
@@ -11,6 +11,7 @@ router.put('/:id/pause', pauseSession)
 router.put('/:id/resume', resumeSession)
 router.put('/:id/stop', endSession)
 router.put('/:id/end', endSession)
+router.patch('/:id/payment', updateSessionPayment)
 router.put('/:id/cancel', cancelSession)
 router.put('/:id/transfer', transferSession)
 router.put('/:id/reverse', verifyAdmin, reverseSession)

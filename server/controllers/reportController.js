@@ -98,7 +98,7 @@ export async function getFinancialReport(req, res, next) {
     const { requestedPeriod, start, end, unit } = range
     const dateFilter = { $gte: start, $lte: end }
     const [sessions, sales, membershipPayments] = await Promise.all([
-      PlaySession.find({ status: 'completed', endedAt: dateFilter }).select('endedAt revenue playedHours').lean(),
+      PlaySession.find({ status: 'completed', endedAt: dateFilter }).select('endedAt revenue playedHours paymentStatus').lean(),
       ProductSale.find({ soldAt: dateFilter }).select('soldAt total quantity').lean(),
       MembershipPayment.find({ paidAt: dateFilter }).select('paidAt amount').lean()
     ])
@@ -125,9 +125,11 @@ export async function getFinancialReport(req, res, next) {
     for (const session of sessions) {
       const bucket = getBucket(session.endedAt)
       if (!bucket) continue
-      bucket.sessionRevenue += Number(session.revenue || 0)
       bucket.playedHours += Number(session.playedHours || 0)
       bucket.completedSessions += 1
+      if (session.paymentStatus === 'paid') {
+        bucket.sessionRevenue += Number(session.revenue || 0)
+      }
     }
     for (const sale of sales) {
       const bucket = getBucket(sale.soldAt)
@@ -190,11 +192,11 @@ export async function getDashboardSummary(req, res, next) {
     const { start, end } = range
     const dateFilter = { $gte: start, $lte: end }
     const [sessions, sales, membershipPayments] = await Promise.all([
-      PlaySession.find({ status: 'completed', endedAt: dateFilter }).select('revenue playedHours').lean(),
+      PlaySession.find({ status: 'completed', endedAt: dateFilter }).select('revenue playedHours paymentStatus').lean(),
       ProductSale.find({ soldAt: dateFilter }).select('total quantity').lean(),
       MembershipPayment.find({ paidAt: dateFilter }).select('amount').lean()
     ])
-    const sessionRevenue = sessions.reduce((sum, item) => sum + Number(item.revenue || 0), 0)
+    const sessionRevenue = sessions.reduce((sum, item) => sum + (item.paymentStatus === 'paid' ? Number(item.revenue || 0) : 0), 0)
     const inventorySales = sales.reduce((sum, item) => sum + Number(item.total || 0), 0)
     const membershipRevenue = membershipPayments.reduce((sum, item) => sum + Number(item.amount || 0), 0)
     const revenue = sessionRevenue + inventorySales + membershipRevenue

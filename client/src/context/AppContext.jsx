@@ -1,28 +1,29 @@
 import { useCallback, useEffect, useMemo, useReducer } from 'react'
 import { AppContext } from './context'
-import { approveBooking, cancelStationSession, createUser, getBookings, getShopSettings, getSessions, listStations, pauseStationSession, rejectBooking, resumeStationSession, reverseStationSession, staffLogin, startStationSession, stopStationSession, submitBooking, transferStationSession, updateShopSettings, updateUser as updateUserRequest } from '../services/api'
+import { cancelStationSession, createBooking, createCustomerBalance, createUser, deleteUser as deleteUserRequest, getBookings, getCustomerBalances, getShopSettings, getSessions, getUsers, listStations, pauseStationSession, recordCustomerBalancePayment, resumeStationSession, reverseStationSession, setBookingStatus, staffLogin, startStationSession, stopStationSession, submitBooking, transferStationSession, updateBookingPayment, updateShopSettings, updateStationSessionPayment, updateUser as updateUserRequest } from '../services/api'
 import { formatBirr } from '../utils/currency'
 
-function storedRemoteReservations() {
-  try {
-    const stored = window.localStorage.getItem('playstation-game-zone-bookings')
-    return stored ? JSON.parse(stored) : []
-  } catch {
-    return []
-  }
-}
-
 function normalizeBooking(booking) {
+  const status = booking.status === 'Approved' ? 'Confirmed' : booking.status === 'Rejected' ? 'Cancelled' : booking.status
   return {
     ...booking,
     id: booking.id || booking._id,
-    confirmation: booking.confirmation || `PGZ-${String(booking._id || Date.now()).slice(-6)}`,
+    confirmation: booking.confirmation,
     customer: booking.customer || booking.customerName,
-    stationId: booking.stationId || booking.stationName,
+    stationId: booking.stationId || booking.stationName || String(booking.station || ''),
     consoleType: booking.consoleType?.replace('PS4', 'PlayStation 4').replace('PS5', 'PlayStation 5'),
     time: booking.time || booking.arrivalTime,
-    status: booking.status === 'Pending' ? 'Pending approval' : booking.status,
-    graceMinutes: booking.graceMinutes || 15
+    status
+  }
+}
+
+function normalizeCustomerBalance(balance) {
+  return {
+    ...balance,
+    id: balance.id || String(balance._id),
+    customer: balance.customer || balance.customerName,
+    total: Number(balance.total ?? balance.amount),
+    paid: Number(balance.paid ?? balance.amountPaid ?? 0)
   }
 }
 
@@ -41,14 +42,19 @@ const initialState = {
   reservations: [],
   cart: [],
   credits: [],
+  creditsLoading: false,
+  creditsError: '',
   auditLog: [],
   notifications: [],
   pricing: { ps4: 0.12, ps5: 0.18, other: 0.1, discountLimit: 10 },
   shift: { openedAt: '08:00 AM', expectedCash: 620, closedAt: null, actualCash: null },
   hardware: [],
-  remoteReservations: storedRemoteReservations(),
+  remoteReservations: [],
+  remoteReservationsLoaded: false,
+  remoteReservationsLoading: false,
+  remoteReservationsError: '',
   users: [],
-  shop: { name: 'Game Zone', phone: '', address: '', rates: { ps4: 0.12, ps5: 0.18, vip: 0.25, other: 0.1 } },
+  shop: { name: 'Game Zone', phone: '', address: '', rates: { ps4: 0.12, ps5: 0.18, vip: 0.25, other: 0.1 }, bookingSettings: { openTime: '09:00', closeTime: '23:00', timeZone: 'Africa/Addis_Ababa', slotIntervalMinutes: 30, durationOptionsMinutes: [30, 60, 90, 120] }, notificationSettings: { bookingRequestsEmail: true, bookingUpdatesEmail: true } },
 }
 
 function notifyStationsChanged() {
@@ -83,27 +89,27 @@ function reducer(state, action) {
     case 'CHECKOUT': return { ...audit({ action: 'processed mixed payment checkout', value: formatBirr(action.total), tone: 'cyan' }), cart: [], transactions: [...state.transactions, { id: Date.now(), amount: action.total }], products: state.products.map((product) => { const sold = state.cart.filter((item) => item.id === product.id).length; return sold ? { ...product, stock: Math.max(0, product.stock - sold) } : product }), notifications: [{ id: Date.now(), title: 'Payment completed', detail: `Mixed payment checkout for ${formatBirr(action.total)}`, tone: 'cyan' }, ...state.notifications] }
     case 'EXPENSE': return { ...audit({ action: `recorded expense: ${action.expense.title}`, value: formatBirr(action.expense.amount), tone: 'orange' }), expenses: [...state.expenses, { id: Date.now(), title: action.expense.title, category: action.expense.category || 'Other', amount: action.expense.amount, by: state.user }], notifications: [{ id: Date.now(), title: 'New expense entry', detail: `${state.user} added ${action.expense.title}`, tone: 'orange' }, ...state.notifications] }
     case 'RESERVE': return { ...audit({ action: `created reservation for ${action.reservation.stationId}`, value: '50% deposit', tone: 'purple' }), reservations: [...state.reservations, { ...action.reservation, id: Date.now(), status: 'Confirmed', graceMinutes: 15 }], stations: state.stations.map((station) => station.id === action.reservation.stationId ? { ...station, status: 'reserved', reservation: { customer: action.reservation.customer } } : station) }
-    case 'CREDIT': return { ...audit({ action: `recorded credit for ${action.credit.customer}`, value: formatBirr(action.credit.amount), tone: 'orange' }), credits: [...state.credits, { ...action.credit, id: Date.now(), paid: 0 }] }
-    case 'REPAY': return { ...audit({ action: `received partial repayment from ${action.customer}`, value: formatBirr(action.amount), tone: 'lime' }), credits: state.credits.map((credit) => credit.id === action.id ? { ...credit, paid: Math.min(credit.total, credit.paid + Number(action.amount)) } : credit) }
+    case 'CREDITS_LOADING': return { ...state, creditsLoading: true, creditsError: '' }
+    case 'SYNC_CREDITS': return { ...state, credits: action.balances.map(normalizeCustomerBalance), creditsLoading: false, creditsError: '' }
+    case 'CREDITS_FAILED': return { ...state, creditsLoading: false, creditsError: action.error }
+    case 'SYNC_USERS': return { ...state, users: action.users.map((user) => ({ ...user, id: String(user.id || user._id) })) }
     case 'CLEAR_NOTIFICATIONS': return { ...state, notifications: [] }
     case 'PRICING': return { ...state, pricing: { ...state.pricing, ...action.pricing }, auditLog: [{ id: Date.now(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), user: state.user, action: 'updated pricing controls', value: 'Admin settings', tone: 'purple' }, ...state.auditLog] }
     case 'SHIFT_CLOSE': return { ...audit({ action: 'closed cashier shift', value: `${formatBirr(action.actualCash)} actual cash`, tone: 'cyan' }), shift: { ...state.shift, closedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), actualCash: action.actualCash } }
-    case 'REMOTE_RESERVATION': return { ...audit({ action: `received remote booking from ${action.reservation.customer}`, value: action.reservation.confirmation, tone: 'cyan' }), remoteReservations: [...state.remoteReservations, { ...action.reservation, status: 'Pending approval' }], notifications: [{ id: Date.now(), title: 'Remote booking request', detail: `${action.reservation.customer} requested ${action.reservation.stationId}`, tone: 'cyan' }, ...state.notifications] }
-    case 'SYNC_REMOTE_RESERVATIONS': return { ...state, remoteReservations: action.reservations.map(normalizeBooking) }
-    case 'REMOTE_RESERVATION_STATUS': return { ...audit({ action: `${action.status.toLowerCase()} remote booking ${action.confirmation}`, value: 'Customer portal request', tone: action.status === 'Approved' ? 'lime' : 'orange' }), remoteReservations: state.remoteReservations.map((reservation) => reservation.confirmation === action.confirmation ? { ...reservation, status: action.status } : reservation), stations: action.status === 'Approved' ? state.stations.map((station) => station.id === action.stationId ? { ...station, status: 'reserved', reservation: { customer: action.customer } } : station) : state.stations, notifications: [{ id: Date.now(), title: `Booking ${action.status.toLowerCase()}`, detail: action.confirmation, tone: action.status === 'Approved' ? 'lime' : 'orange' }, ...state.notifications] }
+    case 'REMOTE_RESERVATIONS_LOADING': return { ...state, remoteReservationsLoading: true, remoteReservationsError: '' }
+    case 'REMOTE_RESERVATIONS_FAILED': return { ...state, remoteReservationsLoaded: true, remoteReservationsLoading: false, remoteReservationsError: action.error }
+    case 'SYNC_REMOTE_RESERVATIONS': return { ...state, remoteReservations: action.reservations.map(normalizeBooking), remoteReservationsLoaded: true, remoteReservationsLoading: false, remoteReservationsError: '' }
+    case 'REMOTE_RESERVATION_STATUS': return { ...audit({ action: `${action.status.toLowerCase()} reservation ${action.confirmation}`, value: 'Customer booking', tone: action.status === 'Confirmed' ? 'lime' : 'orange' }), remoteReservations: state.remoteReservations.map((reservation) => reservation.confirmation === action.confirmation ? { ...reservation, status: action.status } : reservation), notifications: [{ id: Date.now(), title: `Reservation ${action.status.toLowerCase()}`, detail: action.confirmation, tone: action.status === 'Confirmed' ? 'lime' : 'orange' }, ...state.notifications] }
     case 'HARDWARE_ALERT': return { ...audit({ action: `reported ${action.component} issue at ${action.station}`, value: action.reason, tone: 'orange' }), hardware: state.hardware.map((item) => item.station === action.station ? { ...item, [action.component]: 'Needs attention' } : item), notifications: [{ id: Date.now(), title: 'Remote hardware alert', detail: `${action.station}: ${action.reason}`, tone: 'orange' }, ...state.notifications] }
-    case 'ADD_USER': return { ...audit({ action: `created ${action.user.role.toLowerCase()} user ${action.user.email}`, value: 'User management', tone: 'purple' }), users: [...state.users, { ...action.user, id: Date.now() }] }
-    case 'DELETE_USER': return { ...audit({ action: `deleted user ${action.email}`, value: 'User management', tone: 'orange' }), users: state.users.filter((user) => user.email !== action.email) }
-    case 'UPDATE_USER': return { ...audit({ action: `updated user ${action.user.email}`, value: 'User management', tone: 'purple' }), users: state.users.map((user) => user.id === action.user.id ? { ...user, ...action.user } : user) }
+    case 'ADD_USER': return { ...audit({ action: `created ${action.user.role.toLowerCase()} user ${action.user.email}`, value: 'User management', tone: 'purple' }), users: [...state.users, { ...action.user, id: String(action.user.id || action.user._id) }] }
+    case 'DELETE_USER': return { ...audit({ action: `deleted user ${action.user.email}`, value: 'User management', tone: 'orange' }), users: state.users.filter((user) => user.id !== String(action.user.id || action.user._id)) }
+    case 'UPDATE_USER': return { ...audit({ action: `updated user ${action.user.email}`, value: 'User management', tone: 'purple' }), users: state.users.map((user) => user.id === String(action.user.id || action.user._id) ? { ...user, ...action.user, id: String(action.user.id || action.user._id) } : user) }
     default: return state
   }
 }
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState)
-  useEffect(() => {
-    window.localStorage.setItem('playstation-game-zone-bookings', JSON.stringify(state.remoteReservations))
-  }, [state.remoteReservations])
   const refreshStations = useCallback(async () => {
     const [stationResult, sessionResult] = await Promise.all([
       listStations(),
@@ -120,7 +126,7 @@ export function AppProvider({ children }) {
       return {
         id: String(station._id),
         name: station.name,
-        type: station.type === 'PS5' ? 'PlayStation 5' : 'PlayStation 4',
+        type: ({ PS4: 'PlayStation 4', PS5: 'PlayStation 5', VIP: 'VIP', Other: 'Other' })[station.type] || station.type,
         status: normalizedStatus,
         hourlyRate: Number(station.hourlyRate || 0),
         reason: station.maintenanceReason,
@@ -144,6 +150,28 @@ export function AppProvider({ children }) {
     dispatch({ type: 'SYNC_STATIONS', stations })
     return stations
   }, [state.authenticated])
+  const loadRemoteBookings = useCallback(async ({ showLoading = true } = {}) => {
+    if (showLoading) dispatch({ type: 'REMOTE_RESERVATIONS_LOADING' })
+    try {
+      const result = await getBookings()
+      dispatch({ type: 'SYNC_REMOTE_RESERVATIONS', reservations: result.bookings || [] })
+      return result.bookings || []
+    } catch (error) {
+      dispatch({ type: 'REMOTE_RESERVATIONS_FAILED', error: error.message || 'Unable to load reservations.' })
+      throw error
+    }
+  }, [])
+  const loadCustomerBalances = useCallback(async ({ showLoading = true } = {}) => {
+    if (showLoading) dispatch({ type: 'CREDITS_LOADING' })
+    try {
+      const result = await getCustomerBalances()
+      dispatch({ type: 'SYNC_CREDITS', balances: result.balances || [] })
+      return result.balances || []
+    } catch (error) {
+      dispatch({ type: 'CREDITS_FAILED', error: error.message || 'Unable to load customer balances.' })
+      throw error
+    }
+  }, [])
   useEffect(() => {
     let mounted = true
     const refresh = () => {
@@ -162,27 +190,23 @@ export function AppProvider({ children }) {
     }
   }, [state.authenticated, refreshStations])
   useEffect(() => {
-    const syncBookings = (event) => {
-      if (event.key !== 'playstation-game-zone-bookings' || !event.newValue) return
-      const reservations = JSON.parse(event.newValue)
-      dispatch({ type: 'SYNC_REMOTE_RESERVATIONS', reservations })
-    }
-    window.addEventListener('storage', syncBookings)
-    return () => window.removeEventListener('storage', syncBookings)
-  }, [])
-  useEffect(() => {
     if (!state.authenticated) return undefined
-    const refresh = async () => {
-      try {
-        const [result] = await Promise.all([getBookings()])
-        dispatch({ type: 'SYNC_REMOTE_RESERVATIONS', reservations: result.bookings || [] })
-      } catch (error) {
-        console.error('Unable to refresh remote bookings.', error)
-      }
+    const refresh = () => {
+      loadRemoteBookings({ showLoading: false }).catch((error) => console.error('Unable to refresh remote bookings.', error))
     }
+    refresh()
     const interval = window.setInterval(refresh, 10000)
     return () => window.clearInterval(interval)
-  }, [state.authenticated])
+  }, [state.authenticated, loadRemoteBookings])
+  useEffect(() => {
+    if (!state.authenticated) return undefined
+    const refresh = () => {
+      loadCustomerBalances({ showLoading: false }).catch((error) => console.error('Unable to refresh customer balances.', error))
+    }
+    refresh()
+    const interval = window.setInterval(refresh, 30000)
+    return () => window.clearInterval(interval)
+  }, [state.authenticated, loadCustomerBalances])
   const setRoute = useCallback((route) => { window.location.hash = route; dispatch({ type: 'ROUTE', route }) }, [])
   const lockApp = useCallback(() => dispatch({ type: 'LOCK' }), [])
   const value = useMemo(() => ({
@@ -216,8 +240,10 @@ export function AppProvider({ children }) {
         const appRole = role === 'admin' ? 'Owner/Admin' : 'Cashier/Staff'
         dispatch({ type: 'LOGIN', user: result.user.name, role: appRole })
 
-        const [bookingsResult, shopResult] = await Promise.allSettled([getBookings(), getShopSettings()])
-        const hydrationResults = [bookingsResult, shopResult]
+        dispatch({ type: 'REMOTE_RESERVATIONS_LOADING' })
+        const usersPromise = role === 'admin' ? getUsers() : Promise.resolve({ users: [] })
+        const [bookingsResult, shopResult, balancesResult, usersResult] = await Promise.allSettled([getBookings(), getShopSettings(), getCustomerBalances(), usersPromise])
+        const hydrationResults = [bookingsResult, shopResult, balancesResult, usersResult]
         const hydrationErrors = hydrationResults
           .filter((item) => item.status === 'rejected')
           .map((item) => item.reason)
@@ -238,10 +264,18 @@ export function AppProvider({ children }) {
 
         if (bookingsResult.status === 'fulfilled') {
           dispatch({ type: 'SYNC_REMOTE_RESERVATIONS', reservations: bookingsResult.value.bookings || [] })
+        } else {
+          dispatch({ type: 'REMOTE_RESERVATIONS_FAILED', error: bookingsResult.reason.message || 'Unable to load reservations.' })
         }
         if (shopResult.status === 'fulfilled') {
           dispatch({ type: 'SHOP', shop: shopResult.value.shop })
         }
+        if (balancesResult.status === 'fulfilled') {
+          dispatch({ type: 'SYNC_CREDITS', balances: balancesResult.value.balances || [] })
+        } else {
+          dispatch({ type: 'CREDITS_FAILED', error: balancesResult.reason.message || 'Unable to load customer balances.' })
+        }
+        if (usersResult.status === 'fulfilled') dispatch({ type: 'SYNC_USERS', users: usersResult.value.users || [] })
         hydrationErrors.forEach((error) => console.error('Initial staff data load failed.', error))
         return { ok: true }
       } catch (error) {
@@ -261,7 +295,10 @@ export function AppProvider({ children }) {
       dispatch({ type: 'ADD_USER', user: result.user })
       return result.user
     },
-    deleteUser: (email) => dispatch({ type: 'DELETE_USER', email }),
+    deleteUser: async (user) => {
+      await deleteUserRequest(user.id)
+      dispatch({ type: 'DELETE_USER', user })
+    },
     updateUser: async (user) => {
       const result = await updateUserRequest(user.id, user)
       dispatch({ type: 'UPDATE_USER', user: result.user })
@@ -273,14 +310,16 @@ export function AppProvider({ children }) {
       window.localStorage.removeItem('authToken')
       dispatch({ type: 'LOGOUT' })
     },
+    refreshBookings: loadRemoteBookings,
     startSession: async (id, sessionType, details = {}) => {
       const station = state.stations.find((item) => item.id === id)
       const hourlyRates = state.shop?.rates || {}
-      const hourlyRate = station?.type === 'PlayStation 5' ? hourlyRates.ps5 : hourlyRates.ps4
+      const rateKey = ({ 'PlayStation 4': 'ps4', 'PlayStation 5': 'ps5', VIP: 'vip', Other: 'other' })[station?.type]
+      const hourlyRate = rateKey ? hourlyRates[rateKey] : undefined
       const result = await startStationSession({
         stationName: station?.name || id,
         sessionType,
-        hourlyRate: Number(hourlyRate) || Number(state.pricing.ps4) * 60,
+        hourlyRate: Number(hourlyRate ?? station?.hourlyRate ?? Number(state.pricing.ps4) * 60),
         ...details
       })
       dispatch({ type: 'START', id, sessionType, sessionInfo: result.session, ...details })
@@ -335,8 +374,21 @@ export function AppProvider({ children }) {
     checkout: (total) => dispatch({ type: 'CHECKOUT', total }),
     addExpense: (expense) => dispatch({ type: 'EXPENSE', expense }),
     addReservation: (reservation) => dispatch({ type: 'RESERVE', reservation }),
-    addCredit: (credit) => dispatch({ type: 'CREDIT', credit }),
-    repayCredit: (id, customer, amount) => dispatch({ type: 'REPAY', id, customer, amount }),
+    addCredit: async (credit) => {
+      const result = await createCustomerBalance({
+        customerName: credit.customer,
+        phone: credit.phone,
+        amount: Number(credit.amount)
+      })
+      loadCustomerBalances({ showLoading: false }).catch((error) => console.error('Customer balance was saved but could not be refreshed.', error))
+      return result.balance
+    },
+    repayCredit: async (id, amount) => {
+      const result = await recordCustomerBalancePayment(id, amount)
+      loadCustomerBalances({ showLoading: false }).catch((error) => console.error('Customer payment was recorded but balances could not be refreshed.', error))
+      return result.balance
+    },
+    refreshCustomerBalances: loadCustomerBalances,
     clearNotifications: () => dispatch({ type: 'CLEAR_NOTIFICATIONS' }),
     updatePricing: (pricing) => dispatch({ type: 'PRICING', pricing }),
     saveShopSettings: async (settings) => {
@@ -352,16 +404,53 @@ export function AppProvider({ children }) {
     closeShift: (actualCash) => dispatch({ type: 'SHIFT_CLOSE', actualCash: Number(actualCash) }),
     addRemoteReservation: async (reservation) => {
       const result = await submitBooking(reservation)
-      const saved = normalizeBooking(result.booking)
-      dispatch({ type: 'REMOTE_RESERVATION', reservation: saved })
-      return saved
+      return result
+    },
+    createReservation: async (reservation) => {
+      const result = await createBooking(reservation)
+      await loadRemoteBookings({ showLoading: false })
+      return result
     },
     updateRemoteReservation: async (reservation, status) => {
-      const result = status === 'Approved' ? await approveBooking(reservation.id) : await rejectBooking(reservation.id)
-      dispatch({ type: 'REMOTE_RESERVATION_STATUS', confirmation: reservation.confirmation, stationId: reservation.stationId, customer: reservation.customer, status })
+      const result = await setBookingStatus(reservation.id, status)
+      dispatch({ type: 'REMOTE_RESERVATION_STATUS', confirmation: reservation.confirmation, status })
+      await loadRemoteBookings({ showLoading: false })
       return result.booking
     },
+    updateReservationPayment: async (reservation, payment) => {
+      const result = await updateBookingPayment(reservation.id, payment)
+      await loadRemoteBookings({ showLoading: false })
+      return result.booking
+    },
+    startReservationSession: async (reservation) => {
+      const stationId = String(reservation.station)
+      const station = state.stations.find((item) => item.id === stationId)
+      const result = await startStationSession({
+        stationId,
+        stationName: reservation.stationName,
+        sessionType: 'Reservation',
+        customerName: reservation.customerName,
+        customerPhone: reservation.phone,
+        bookingId: reservation._id
+      })
+      dispatch({ type: 'START', id: stationId, sessionType: 'Reservation', sessionInfo: result.session, customer: reservation.customerName, fixedMinutes: reservation.durationMinutes })
+      notifyStationsChanged()
+      if (!station) await refreshStations()
+      await loadRemoteBookings({ showLoading: false })
+      return result
+    },
+    completeReservationSession: async (reservation) => {
+      if (!reservation.session) throw new Error('This reservation has no linked gaming session.')
+      const result = await stopStationSession(reservation.session, { reason: 'Reservation completed' })
+      notifyStationsChanged()
+      await loadRemoteBookings({ showLoading: false })
+      return result.session
+    },
+    updateSessionPayment: async (session, payment) => {
+      const result = await updateStationSessionPayment(session._id, payment)
+      return result.session
+    },
     reportHardwareIssue: (station, component, reason) => dispatch({ type: 'HARDWARE_ALERT', station, component, reason }),
-  }), [state, setRoute, lockApp, refreshStations])
+  }), [state, setRoute, lockApp, refreshStations, loadRemoteBookings, loadCustomerBalances])
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

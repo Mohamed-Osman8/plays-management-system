@@ -6,6 +6,8 @@ const paymentMethods = ['cash', 'card', 'mobile_money', 'bank', 'membership', 'o
 const playSessionSchema = new mongoose.Schema(
   {
     station: { type: mongoose.Schema.Types.ObjectId, ref: 'Station', required: true, index: true },
+    booking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
+    reservedDurationMinutes: { type: Number, min: 1, default: null },
     stationName: { type: String, required: true, trim: true },
     customerName: { type: String, trim: true, maxlength: 100, default: 'Walk-in player' },
     customerPhone: { type: String, trim: true, maxlength: 30 },
@@ -29,6 +31,11 @@ const playSessionSchema = new mongoose.Schema(
 )
 
 playSessionSchema.index({ station: 1, status: 1 })
+playSessionSchema.index({ booking: 1 }, {
+  unique: true,
+  partialFilterExpression: { booking: { $type: 'objectId' } },
+  name: 'unique_booking_session'
+})
 playSessionSchema.plugin(tenantPlugin)
 
 export const SESSION_PAYMENT_METHODS = paymentMethods

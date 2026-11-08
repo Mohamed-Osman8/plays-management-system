@@ -66,7 +66,8 @@ async function request(path, options = {}) {
     console.info(`[email-verification] API response status=${response.status}`)
   }
   if (!response.ok) {
-    const error = new Error(body.message || 'Request failed.')
+    const requestLabel = `${options.method || 'GET'} ${apiUrl.pathname}`
+    const error = new Error(body.message || `${requestLabel} failed with HTTP ${response.status}.`)
     Object.assign(error, body)
     error.status = response.status
 
@@ -88,14 +89,27 @@ export function submitBooking(bookingData) {
   return request('/bookings/request', {
     method: 'POST',
     body: JSON.stringify({
-      customerName: bookingData.customer,
+      shopId: bookingData.shopId,
+      customerName: bookingData.customerName || bookingData.customer,
+      customerEmail: bookingData.customerEmail || bookingData.email || '',
       phone: bookingData.phone,
-      consoleType: bookingData.consoleType.replace('PlayStation ', 'PS'),
-      stationName: bookingData.stationId,
+      consoleType: String(bookingData.consoleType || '').replace('PlayStation ', 'PS'),
+      stationId: bookingData.stationId,
       date: bookingData.date,
-      arrivalTime: bookingData.time
+      startTime: bookingData.startTime || bookingData.time,
+      durationMinutes: Number(bookingData.durationMinutes),
+      notes: bookingData.notes || ''
     })
   })
+}
+
+export function getPublicShops() {
+  return request('/bookings/public/shops')
+}
+
+export function getPublicAvailability(filters = {}) {
+  const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== undefined && value !== ''))
+  return request(`/bookings/public/availability?${query}`)
 }
 
 export function staffLogin(credentials) {
@@ -129,8 +143,51 @@ export function resetPasswordWithOtp({ email, otp, newPassword }) {
   })
 }
 
-export function getBookings() {
-  return request('/bookings')
+export function getBookings(filters = {}) {
+  const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== undefined && value !== ''))
+  return request(`/bookings${query.size ? `?${query}` : ''}`)
+}
+
+export function getBookingSummary() {
+  return request('/bookings/summary')
+}
+
+export function getCustomerBalances() {
+  return request('/customer-balances')
+}
+
+export function createCustomerBalance(balance) {
+  return request('/customer-balances', {
+    method: 'POST',
+    body: JSON.stringify({
+      customerName: balance.customerName,
+      phone: balance.phone,
+      amount: Number(balance.amount)
+    })
+  })
+}
+
+export function recordCustomerBalancePayment(id, amount) {
+  return request(`/customer-balances/${id}/payments`, {
+    method: 'PATCH',
+    body: JSON.stringify({ amount: Number(amount) })
+  })
+}
+
+export function createBooking(booking) {
+  return request('/bookings', { method: 'POST', body: JSON.stringify(booking) })
+}
+
+export function updateBooking(id, booking) {
+  return request(`/bookings/${id}`, { method: 'PUT', body: JSON.stringify(booking) })
+}
+
+export function setBookingStatus(id, status) {
+  return request(`/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) })
+}
+
+export function updateBookingPayment(id, payment) {
+  return request(`/bookings/${id}/payment`, { method: 'PATCH', body: JSON.stringify(payment) })
 }
 
 export function approveBooking(id) {
@@ -148,11 +205,19 @@ export function createUser(userData) {
   })
 }
 
+export function getUsers() {
+  return request('/users')
+}
+
 export function updateUser(id, userData) {
   return request(`/users/${id}`, {
     method: 'PUT',
     body: JSON.stringify(userData)
   })
+}
+
+export function deleteUser(id) {
+  return request(`/users/${id}`, { method: 'DELETE' })
 }
 
 export function listProducts() {
@@ -215,6 +280,10 @@ export function resumeStationSession(id, data = {}) {
 
 export function stopStationSession(id, data = {}) {
   return request(`/sessions/${id}/stop`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export function updateStationSessionPayment(id, data) {
+  return request(`/sessions/${id}/payment`, { method: 'PATCH', body: JSON.stringify(data) })
 }
 
 export function cancelStationSession(id, data = {}) {

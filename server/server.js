@@ -10,6 +10,7 @@ import { ensureTenantIndexes } from './config/tenantIndexes.js'
 import authRoutes from './routes/authRoutes.js'
 import userRoutes from './routes/userRoutes.js'
 import bookingRoutes from './routes/bookingRoutes.js'
+import customerBalanceRoutes from './routes/customerBalanceRoutes.js'
 import stationRoutes from './routes/stationRoutes.js'
 import productRoutes from './routes/productRoutes.js'
 import sessionRoutes from './routes/sessionRoutes.js'
@@ -125,6 +126,7 @@ app.use('/api/payments', paymentRoutes)
 app.use('/api/shop', shopRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/bookings', bookingRoutes)
+app.use('/api/customer-balances', customerBalanceRoutes)
 app.use('/api/stations', stationRoutes)
 app.use('/api/products', productRoutes)
 app.use('/api/sales', salesRoutes)

@@ -18,6 +18,17 @@ const shopSchema = new mongoose.Schema({
     vip: { type: Number, min: 0, default: 0.25 },
     other: { type: Number, min: 0, default: 0.1 }
   },
+  bookingSettings: {
+    openTime: { type: String, match: /^([01]\d|2[0-3]):[0-5]\d$/, default: '09:00' },
+    closeTime: { type: String, match: /^([01]\d|2[0-3]):[0-5]\d$/, default: '23:00' },
+    timeZone: { type: String, trim: true, default: 'Africa/Addis_Ababa' },
+    slotIntervalMinutes: { type: Number, min: 5, max: 240, default: 30 },
+    durationOptionsMinutes: { type: [Number], default: [30, 60, 90, 120] }
+  },
+  notificationSettings: {
+    bookingRequestsEmail: { type: Boolean, default: true },
+    bookingUpdatesEmail: { type: Boolean, default: true }
+  },
   license: {
     status: { type: String, enum: ['trial', 'active', 'locked', 'suspended'], default: 'active' },
     expiresAt: { type: Date, default: null },

@@ -20,6 +20,7 @@ button { cursor: pointer; }
 a { color: inherit; text-decoration: none; }
 
 .app-shell { min-height: 100vh; padding-left: 76px; }
+.app-shell:has(.sidebar-open) { padding-left: 250px; }
 .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 30; width: 76px; display: flex; flex-direction: column; padding: 20px 10px; border-right: 1px solid var(--line); background: linear-gradient(180deg, #101820, #0b1016 72%); transition: width .2s ease, box-shadow .2s ease; }
 .sidebar-open { width: 250px; padding: 24px 16px; box-shadow: 18px 0 45px #0005; }
 .sidebar-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 22px; }
@@ -465,20 +466,24 @@ select:focus, input:focus { border-color: var(--lime); }
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: #030609b8; backdrop-filter: blur(5px); }.modal { width: min(100%, 540px); max-height: 90vh; overflow-y: auto; padding: 23px; box-shadow: 0 25px 90px #000b; }.modal-heading { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 22px; }.modal-heading h3 { margin-top: 7px; font: 600 1.18rem 'Space Grotesk'; }.modal-back { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 7px; color: var(--lime); background: var(--panel-2); font-size: 1.25rem; }.modal-back:hover { border-color: var(--lime); }
 .station-card-interactive { cursor: pointer; }.station-card-interactive:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }.station-details-trigger { display: flex; justify-content: space-between; width: 100%; margin: 8px 0; padding: 7px 4px 0; border: 0; border-top: 1px solid var(--line); color: var(--muted); background: transparent; font-size: .62rem; text-align: left; }.station-details-trigger span { color: var(--lime); }.station-details-trigger:hover { color: var(--text); }
 .station-detail-console { max-width: 340px; margin: 0 auto; }.station-detail-screen { min-height: 130px; }.station-detail-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; margin: 10px 0 18px; }.station-detail-list > div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: .68rem; }.station-detail-list dt { color: var(--muted); }.station-detail-list dd { margin: 0; color: var(--text); text-align: right; }.station-detail-actions { flex-wrap: wrap; }
-.sidebar:not(.sidebar-open) nav, .sidebar:not(.sidebar-open) .sidebar-footer { display: none; }
 @media (max-width: 760px) { .app-shell { padding-left: 0; }.sidebar { position: relative; width: 100%; height: auto; min-height: 68px; padding: 12px 16px; }.sidebar-open { width: 100%; padding: 12px 16px 16px; box-shadow: 0 16px 35px #0005; }.sidebar-heading { flex-direction: row !important; margin-bottom: 0; }.sidebar-brand { margin: 0; }.sidebar-open nav { display: grid; margin-top: 14px; }.sidebar-open nav a { padding: 11px 12px; }.sidebar-open .sidebar-footer { display: block; margin-top: 20px; }.sidebar-open .sidebar-brand > span:nth-child(2) { display: block; }.topbar { height: auto; align-items: start; padding: 20px 16px; }.topbar-actions { gap: 10px; }.live-indicator { display: none; }.user-button > span:nth-child(2) { display: none; }.workspace { padding: 22px 16px; }.stats-grid { grid-template-columns: repeat(2, 1fr); }.page-toolbar { align-items: start; flex-direction: column; }.toolbar-actions { width: 100%; }.toolbar-actions select { flex: 1; }.table-panel { overflow-x: auto; }.table-header, .table-row { min-width: 680px; }.settings-grid, .pos-layout { grid-template-columns: 1fr; }.expense-form { grid-template-columns: 1fr 1fr; }.page-footer { display: none; }.public-portal { padding: 20px 16px; }.public-nav { gap: 10px; }.public-nav a:first-child { display: none; }.landing-hero, .public-grid { grid-template-columns: 1fr; }.landing-hero { min-height: auto; padding: 65px 0; }.hero-console { width: 70%; margin: 0 auto; }.pricing-cards { grid-template-columns: 1fr; }.public-footer { display: grid; gap: 8px; }.public-hero { margin-top: 45px; }.landing-actions { flex-direction: column; align-items: stretch; } }
 @media (max-width: 1100px) { .station-grid { grid-template-columns: repeat(2, 1fr); }.dashboard-grid, .lower-grid { grid-template-columns: 1fr; }.revenue-panel { min-height: 0; }.product-grid { grid-template-columns: repeat(2, 1fr); }.user-form { grid-template-columns: repeat(3, 1fr); }.user-form button { grid-column: span 3; } }
 @media (max-width: 760px) { .app-shell { padding-left: 0; }.sidebar { position: static; width: 100%; height: auto; padding: 16px; }.sidebar-brand { margin: 0 0 18px; }.sidebar nav { display: flex; overflow-x: auto; }.sidebar nav a { flex: 0 0 auto; padding: 10px; }.sidebar nav a span { display: none; }.sidebar-footer { display: none; }.topbar { height: auto; align-items: start; padding: 20px 16px; }.topbar-actions { gap: 10px; }.live-indicator { display: none; }.user-button > span:nth-child(2) { display: none; }.workspace { padding: 22px 16px; }.stats-grid { grid-template-columns: repeat(2, 1fr); }.page-toolbar { align-items: start; flex-direction: column; }.toolbar-actions { width: 100%; }.toolbar-actions select { flex: 1; }.table-panel { overflow-x: auto; }.table-header, .table-row { min-width: 680px; }.settings-grid, .pos-layout { grid-template-columns: 1fr; }.expense-form { grid-template-columns: 1fr 1fr; }.page-footer { display: none; }.public-portal { padding: 20px 16px; }.public-nav { gap: 10px; }.public-nav a:first-child { display: none; }.landing-hero, .public-grid { grid-template-columns: 1fr; }.landing-hero { min-height: auto; padding: 65px 0; }.hero-console { width: 70%; margin: 0 auto; }.pricing-cards { grid-template-columns: 1fr; }.public-footer { display: grid; gap: 8px; }.public-hero { margin-top: 45px; }.landing-actions { flex-direction: column; align-items: stretch; } }
 @media (max-width: 450px) { .station-grid { grid-template-columns: 1fr; }.stats-grid { gap: 8px; }.stat-card { padding: 14px; }.stat-card strong { font-size: 1.35rem; }.form-grid, .expense-form, .user-form { grid-template-columns: 1fr; }.user-form button { grid-column: auto; }.activity-row { grid-template-columns: 9px 45px 1fr; }.activity-row b { grid-column: 3; }.station-actions .button { font-size: .64rem; } }
 @media (max-width: 760px) { .station-create-form, .membership-form, .report-toolbar { align-items: stretch; flex-direction: column; }.station-create-form > *, .membership-form > *, .report-toolbar > * { width: 100%; }.report-breakdown-grid { grid-template-columns: 1fr; }.station-management-row, .membership-row { min-width: 850px; }.station-status-actions { flex-wrap: nowrap; }.station-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
-  .sidebar:not(.sidebar-open) nav,
+  .sidebar:not(.sidebar-open) nav { display: flex; overflow-x: auto; }
   .sidebar:not(.sidebar-open) .sidebar-footer { display: none; }
   .sidebar-open nav { display: grid; overflow: visible; }
   .sidebar-open nav a { flex: initial; }
   .sidebar-open nav a span { display: inline; }
   .sidebar-open .sidebar-footer { display: block; }
   .station-detail-list { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .session-history-panel { padding: 16px; }
+  .session-history-panel .panel-heading { align-items: flex-start; }
+  .session-history-payment { align-items: flex-start; flex-direction: column; }
 }
 @media (max-width: 760px) {
   .page-footer { display: flex; }
@@ -1041,4 +1046,1909 @@ select:focus, input:focus { border-color: var(--lime); }
 @media (max-width: 520px) {
   .super-admin-login-card { gap: 18px; padding: 38px 24px 28px; border-radius: 15px; }
   .super-admin-login-close { top: 13px; right: 13px; }
+}
+
+.login-page {
+  padding: clamp(18px, 4vw, 56px);
+  background:
+    radial-gradient(ellipse at 4% 12%, #1687ff2b, transparent 37%),
+    radial-gradient(ellipse at 55% 100%, #774cff1a, transparent 43%),
+    radial-gradient(ellipse at 94% 18%, #24caff13, transparent 31%),
+    #070a12;
+}
+.login-backdrop-grid {
+  opacity: .14;
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at 38% 48%, #000 0, transparent 76%);
+}
+.login-layout {
+  grid-template-columns: 1.12fr .88fr;
+  width: min(100%, 1280px);
+  min-height: min(790px, calc(100svh - 48px));
+  border-color: #8dbbff24;
+  border-radius: 26px;
+  background: #0c111b;
+  box-shadow: 0 42px 130px #000b, 0 0 100px #1687ff12, 0 0 1px #bde0ff90;
+}
+.login-showcase {
+  isolation: isolate;
+  padding: clamp(34px, 5vw, 68px);
+  border-right-color: #8dbbff1d;
+  background:
+    radial-gradient(ellipse at 72% 75%, #197bff2a, transparent 41%),
+    radial-gradient(ellipse at 95% 35%, #995fff20, transparent 32%),
+    linear-gradient(145deg, #121d30 0%, #0c1422 57%, #0b111c 100%);
+}
+.login-showcase::before,
+.login-showcase::after {
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  content: '';
+  pointer-events: none;
+}
+.login-showcase::before {
+  top: 12%;
+  right: 12%;
+  width: 7px;
+  height: 7px;
+  background: #8d7cff;
+  box-shadow: 0 0 22px 6px #795cff75, 156px 120px 0 -2px #4ccaff, 156px 120px 18px 2px #4ccaff80;
+}
+.login-showcase::after {
+  right: 9%;
+  bottom: 8%;
+  width: 290px;
+  height: 290px;
+  border: 1px solid #65beff17;
+  box-shadow: 0 0 70px #218bff12, inset 0 0 70px #218bff0a;
+}
+.login-brand {
+  gap: 14px;
+  font-size: .79rem;
+  letter-spacing: .16em;
+}
+.login-brand .brand-mark,
+.login-mobile-brand .brand-mark {
+  width: 46px;
+  height: 46px;
+  border: 1px solid #84c8ff6e;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #28aaff, #1459d4 72%);
+  box-shadow: 0 9px 26px #087eff43, inset 0 1px #fff8;
+}
+.login-brand b,
+.login-mobile-brand b { color: #83caff; }
+.login-showcase-copy {
+  max-width: 440px;
+  padding: 30px 0 52px;
+  animation: login-enter .75s cubic-bezier(.2, .75, .25, 1) both;
+}
+.login-system-tag {
+  border-color: #75bfff3d;
+  color: #c1d5ee;
+  background: #101f34c9;
+  box-shadow: inset 0 1px #ffffff0b;
+  backdrop-filter: blur(12px);
+}
+.login-system-tag i { background: #5de2ff; box-shadow: 0 0 13px #47c9ff; }
+.login-showcase-kicker {
+  margin-top: 40px;
+  color: #78ccff;
+  text-shadow: 0 0 24px #1687ff55;
+}
+.login-showcase h1 {
+  font-size: clamp(3.1rem, 5.3vw, 5.15rem);
+  line-height: .99;
+  letter-spacing: -.075em;
+  text-shadow: 0 8px 45px #0006;
+}
+.login-showcase h1 span {
+  color: transparent;
+  background: linear-gradient(100deg, #65c6ff 3%, #9db3ff 57%, #bd8cff 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+.login-showcase-description {
+  max-width: 365px;
+  color: #a9bad0;
+  font-size: .92rem;
+}
+.login-showcase-status {
+  position: relative;
+  z-index: 2;
+  border-color: #a2caff25;
+  border-radius: 13px;
+  background: linear-gradient(115deg, #142339d9, #101b2bc9);
+  box-shadow: 0 18px 45px #0004, inset 0 1px #ffffff0d;
+  backdrop-filter: blur(14px);
+}
+.login-status-icon {
+  border-color: #59baff69;
+  color: #9bd9ff;
+  background: linear-gradient(145deg, #174a82, #172f57);
+  box-shadow: inset 0 1px #ffffff1a, 0 0 25px #1687ff20;
+}
+.login-status-pulse {
+  background: #67e9ff;
+  box-shadow: 0 0 13px #47caff;
+  animation: login-pulse 2.4s ease-in-out infinite;
+}
+.login-showcase-footer { color: #8a9db7; }
+.login-showcase-footer i { background: linear-gradient(90deg, #278eff, #b27bff); }
+.login-orbit { border-color: #63adff20; box-shadow: 0 0 65px #1687ff0b; }
+.login-orbit-two { border-color: #aa7cff28; }
+.login-controller-art {
+  position: absolute;
+  z-index: 0;
+  right: -9%;
+  bottom: 9%;
+  width: min(78%, 650px);
+  pointer-events: none;
+  transform: rotate(-7deg);
+  transform-origin: 50% 50%;
+  animation: controller-float 8s ease-in-out infinite;
+}
+.login-controller-art svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 26px 36px #0009) drop-shadow(0 0 30px #218bff25);
+}
+.login-form-side {
+  position: relative;
+  isolation: isolate;
+  padding: clamp(34px, 5.5vw, 78px);
+  background:
+    radial-gradient(ellipse at 100% 0, #7560ff10, transparent 45%),
+    linear-gradient(155deg, #121925ed, #0d131e 75%);
+}
+.login-form-side::before {
+  position: absolute;
+  z-index: -1;
+  top: 8%;
+  right: -140px;
+  width: 310px;
+  height: 310px;
+  border: 1px solid #9a7cff10;
+  border-radius: 50%;
+  box-shadow: 0 0 80px #875cff0b, inset 0 0 80px #875cff09;
+  content: '';
+  pointer-events: none;
+}
+.login-form-card {
+  width: min(100%, 390px);
+  gap: 21px;
+  animation: login-enter .75s .08s cubic-bezier(.2, .75, .25, 1) both;
+}
+.login-eyebrow {
+  color: #83b9e8;
+  letter-spacing: .16em;
+}
+.login-form-card h2 {
+  font-size: clamp(2.2rem, 3.2vw, 2.9rem);
+  letter-spacing: -.06em;
+}
+.login-form-card h2 span {
+  color: #79baff;
+  text-shadow: 0 0 25px #1687ff70;
+}
+.login-form-intro { color: #9aaac0; line-height: 1.6; }
+.login-field { gap: 10px; color: #d3deec; font-size: .72rem; }
+.login-field input {
+  min-height: 53px;
+  padding: 0 16px;
+  border-color: #9cb8dc25;
+  border-radius: 10px;
+  color: #f4f8ff;
+  background: #080e18b8;
+  box-shadow: inset 0 1px #ffffff06;
+}
+.login-field input:focus,
+.login-password-input:focus-within {
+  border-color: #4ea9ffb8;
+  box-shadow: 0 0 0 3px #1687ff1e, 0 0 24px #1687ff12;
+}
+.login-password-input {
+  min-height: 53px;
+  border-color: #9cb8dc25;
+  border-radius: 10px;
+  background: #080e18b8;
+  box-shadow: inset 0 1px #ffffff06;
+}
+.login-password-input input { min-height: 51px; }
+.login-password-input button { padding: 0 16px; }
+.login-forgot-button { color: #82c4ff; font-size: .69rem; }
+.login-submit {
+  min-height: 54px;
+  border: 1px solid #7cc5ff5c;
+  border-radius: 10px;
+  background: linear-gradient(105deg, #126ce0 0%, #198df4 53%, #2676e9 100%);
+  box-shadow: 0 12px 30px #0874df38, inset 0 1px #ffffff36;
+  letter-spacing: .015em;
+}
+.login-submit:hover:not(:disabled) {
+  box-shadow: 0 15px 34px #0874df55, inset 0 1px #ffffff45;
+}
+.login-create-shop { color: #a1afc2; }
+.login-create-shop b { color: #86c8ff; }
+.login-form-footer { color: #8492a8; line-height: 1.5; }
+.login-secure-indicator { color: #a5b8ce; }
+.login-copyright { color: #74839b; letter-spacing: .13em; }
+
+:root[data-theme='light'] .login-page {
+  background:
+    radial-gradient(ellipse at 4% 12%, #1687ff24, transparent 37%),
+    radial-gradient(ellipse at 55% 100%, #774cff14, transparent 43%),
+    #e8eef6;
+}
+:root[data-theme='light'] .login-layout {
+  border-color: #b6c8df;
+  background: #fff;
+  box-shadow: 0 35px 100px #21426c26, 0 0 1px #4a719b;
+}
+:root[data-theme='light'] .login-showcase {
+  background:
+    radial-gradient(ellipse at 72% 75%, #197bff25, transparent 41%),
+    radial-gradient(ellipse at 95% 35%, #995fff1b, transparent 32%),
+    linear-gradient(145deg, #eaf3ff 0%, #dceaff 57%, #e8effa 100%);
+}
+:root[data-theme='light'] .login-showcase h1 { color: #152942; text-shadow: none; }
+:root[data-theme='light'] .login-showcase h1 span {
+  color: #1578d4;
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+:root[data-theme='light'] .login-showcase-description { color: #526881; }
+:root[data-theme='light'] .login-brand,
+:root[data-theme='light'] .login-showcase-status b { color: #1b2f48; }
+:root[data-theme='light'] .login-system-tag {
+  border-color: #659bd35c;
+  color: #385676;
+  background: #ffffffa6;
+}
+:root[data-theme='light'] .login-showcase-status {
+  border-color: #8eafd25c;
+  background: #ffffffb8;
+  box-shadow: 0 14px 35px #375b8020, inset 0 1px #fff;
+}
+:root[data-theme='light'] .login-showcase-status small,
+:root[data-theme='light'] .login-showcase-footer { color: #536a84; }
+:root[data-theme='light'] .login-form-side {
+  background:
+    radial-gradient(ellipse at 100% 0, #7560ff0c, transparent 45%),
+    linear-gradient(155deg, #ffffff, #f3f6fb 75%);
+}
+:root[data-theme='light'] .login-form-card h2 { color: #1b2733; }
+:root[data-theme='light'] .login-form-intro,
+:root[data-theme='light'] .login-form-footer { color: #617181; }
+:root[data-theme='light'] .login-field { color: #36495c; }
+:root[data-theme='light'] .login-field input,
+:root[data-theme='light'] .login-password-input {
+  border-color: #b7c8da;
+  color: #1b2733;
+  background: #fff;
+}
+:root[data-theme='light'] .login-field input::placeholder { color: #8998a9; }
+:root[data-theme='light'] .login-secure-indicator { color: #52677e; }
+:root[data-theme='light'] .login-copyright { color: #6c7d91; }
+
+@keyframes login-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes controller-float {
+  0%, 100% { transform: translateY(0) rotate(-7deg); }
+  50% { transform: translateY(-10px) rotate(-5deg); }
+}
+@keyframes login-pulse {
+  0%, 100% { opacity: .7; box-shadow: 0 0 10px #47caff; }
+  50% { opacity: 1; box-shadow: 0 0 18px 3px #47caffaa; }
+}
+@media (max-width: 980px) and (min-width: 761px) {
+  .login-layout { grid-template-columns: 1fr .95fr; }
+  .login-showcase { padding: 38px; }
+  .login-showcase-copy { max-width: 370px; }
+  .login-showcase h1 { font-size: clamp(2.8rem, 5vw, 4rem); }
+  .login-controller-art { right: -16%; bottom: 11%; width: 86%; opacity: .8; }
+  .login-form-side { padding: 38px; }
+}
+@media (max-width: 760px) {
+  .login-page {
+    background:
+      radial-gradient(ellipse at 50% 0, #1687ff21, transparent 50%),
+      radial-gradient(ellipse at 100% 100%, #774cff16, transparent 42%),
+      #070a12;
+  }
+  .login-layout {
+    border-color: #8dbbff2b;
+    background: #0c111beF;
+    box-shadow: 0 30px 90px #0009, 0 0 60px #1687ff12;
+  }
+  .login-form-side {
+    background:
+      radial-gradient(ellipse at 100% 0, #7560ff12, transparent 45%),
+      linear-gradient(155deg, #121925, #0d131e 75%);
+  }
+  :root[data-theme='light'] .login-page {
+    background:
+      radial-gradient(ellipse at 50% 0, #1687ff1c, transparent 50%),
+      #e8eef6;
+  }
+  :root[data-theme='light'] .login-layout {
+    border-color: #c0cede;
+    background: #fff;
+  }
+  :root[data-theme='light'] .login-form-side {
+    background: linear-gradient(155deg, #fff, #f3f6fb 75%);
+  }
+}
+
+/* Dashboard-only visual treatment; the existing dashboard data and controls remain unchanged. */
+.app-shell:has(.workspace > .stats-grid) {
+  --dashboard-blue: #278bff;
+  --dashboard-cyan: #42d4ff;
+  --dashboard-violet: #9c7cff;
+}
+.app-shell:has(.workspace > .stats-grid) .topbar {
+  position: relative;
+  border-bottom-color: #75a8ee20;
+  background:
+    radial-gradient(ellipse at 86% 0, #326de41a, transparent 38%),
+    linear-gradient(105deg, #0d1421f5, #101827f5 68%, #111429f5);
+}
+.app-shell:has(.workspace > .stats-grid) .topbar h1 {
+  font-size: 1.18rem;
+  letter-spacing: -.025em;
+}
+.app-shell:has(.workspace > .stats-grid) .sidebar {
+  border-right-color: #7395c51f;
+  background:
+    radial-gradient(ellipse at 50% 0, #2856a31c, transparent 42%),
+    linear-gradient(180deg, #0d1422, #0a0f19 74%);
+}
+.app-shell:has(.workspace > .stats-grid) .sidebar-open {
+  box-shadow: 18px 0 50px #0008, 1px 0 #4891ff30;
+}
+.app-shell:has(.workspace > .stats-grid) .sidebar-menu-toggle {
+  border-color: #6395d833;
+  color: #8dbaff;
+  background: linear-gradient(145deg, #1a2a46, #121b2c);
+}
+.app-shell:has(.workspace > .stats-grid) .sidebar nav a {
+  min-height: 42px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  transition: color .18s ease, background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.app-shell:has(.workspace > .stats-grid) .sidebar nav a:hover {
+  transform: translateX(2px);
+  border-color: #7aaaff20;
+  background: #ffffff08;
+}
+.app-shell:has(.workspace > .stats-grid) .sidebar nav a.active {
+  border-color: #438dff45;
+  background: linear-gradient(100deg, #257aff30, #6874ff12);
+  box-shadow: inset 3px 0 #4d9cff, 0 5px 18px #1767e51c;
+}
+.app-shell:has(.workspace > .stats-grid) .workspace {
+  padding-top: 32px;
+}
+.app-shell:has(.workspace > .stats-grid) .page-toolbar {
+  position: relative;
+  isolation: isolate;
+  min-height: 156px;
+  align-items: center;
+  overflow: hidden;
+  margin-bottom: 20px;
+  padding: clamp(20px, 3vw, 34px);
+  border: 1px solid #6f9fff30;
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 79% 108%, #4f62ff42, transparent 35%),
+    radial-gradient(ellipse at 98% 0, #15baff30, transparent 38%),
+    linear-gradient(112deg, #101c34 0%, #14274a 52%, #201b47 100%);
+  box-shadow: 0 18px 45px #0308166b, inset 0 1px #ffffff12;
+}
+.app-shell:has(.workspace > .stats-grid) .page-toolbar::after {
+  position: absolute;
+  top: -105px;
+  right: 12%;
+  z-index: -1;
+  width: 280px;
+  height: 280px;
+  border: 1px solid #9abaff1c;
+  border-radius: 50%;
+  box-shadow: 0 0 0 32px #9abaff08, 0 0 0 70px #9abaff06;
+  content: '';
+}
+.app-shell:has(.workspace > .stats-grid) .page-toolbar > div:first-child {
+  position: relative;
+  z-index: 1;
+}
+.app-shell:has(.workspace > .stats-grid) .page-toolbar .breadcrumb {
+  color: #b6c8e8b8;
+}
+.app-shell:has(.workspace > .stats-grid) .page-toolbar h2 {
+  margin-top: 8px;
+  color: #f4f7ff;
+  font-size: clamp(1.7rem, 3vw, 2.25rem);
+  letter-spacing: -.055em;
+}
+.app-shell:has(.workspace > .stats-grid) .toolbar-actions {
+  position: relative;
+  z-index: 1;
+}
+.app-shell:has(.workspace > .stats-grid) .occupancy-indicator {
+  border-color: #77dcff42;
+  color: #91e6ff;
+  background: #06182775;
+  backdrop-filter: blur(12px);
+}
+.app-shell:has(.workspace > .stats-grid) .page-toolbar select {
+  min-height: 39px;
+  border-color: #a6bcdf35;
+  color: #eff5ff;
+  background-color: #101a2d;
+}
+.app-shell:has(.workspace > .stats-grid) .page-toolbar .button-primary {
+  min-height: 39px;
+  border-radius: 9px;
+  background: linear-gradient(110deg, #268cff, #6068ff);
+  box-shadow: 0 8px 24px #397aff45;
+}
+.app-shell:has(.workspace > .stats-grid) .stats-grid {
+  gap: 15px;
+  margin-bottom: 18px;
+}
+.app-shell:has(.workspace > .stats-grid) .stat-card {
+  min-height: 142px;
+  padding: 21px 22px;
+  border-color: #7187aa24;
+  border-radius: 15px;
+  background:
+    radial-gradient(ellipse at 100% 0, #438bff10, transparent 55%),
+    linear-gradient(145deg, #151e2f, #101722 78%);
+  box-shadow: 0 13px 35px #02071159, inset 0 1px #ffffff08;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.app-shell:has(.workspace > .stats-grid) .stat-card:hover {
+  transform: translateY(-2px);
+  border-color: #6899ec55;
+  box-shadow: 0 17px 38px #02071170, 0 0 22px #3278ff10;
+}
+.app-shell:has(.workspace > .stats-grid) .stat-card::after {
+  right: -25px;
+  bottom: -62px;
+  width: 135px;
+  height: 135px;
+  border: 24px solid #398aff12;
+  box-shadow: 0 0 35px #3783ff14;
+}
+.app-shell:has(.workspace > .stats-grid) .stat-card > span {
+  color: #a8b7ce;
+  font-size: .72rem;
+  font-weight: 600;
+}
+.app-shell:has(.workspace > .stats-grid) .stat-card strong {
+  margin: 15px 0 8px;
+  font-size: clamp(1.5rem, 2vw, 1.9rem);
+  letter-spacing: -.04em;
+}
+.app-shell:has(.workspace > .stats-grid) .stat-lime strong { color: #76aaff; }
+.app-shell:has(.workspace > .stats-grid) .stat-cyan strong { color: #53d7f4; }
+.app-shell:has(.workspace > .stats-grid) .stat-purple strong { color: #b09aff; }
+.app-shell:has(.workspace > .stats-grid) .stat-orange strong { color: #ffba78; }
+.app-shell:has(.workspace > .stats-grid) .stat-card small {
+  position: relative;
+  z-index: 1;
+  color: #8190a8;
+  line-height: 1.45;
+}
+.app-shell:has(.workspace > .stats-grid) .dashboard-grid,
+.app-shell:has(.workspace > .stats-grid) .lower-grid {
+  gap: 17px;
+}
+.app-shell:has(.workspace > .stats-grid) .lower-grid {
+  margin-top: 17px;
+}
+.app-shell:has(.workspace > .stats-grid) .panel {
+  border-color: #7187aa24;
+  border-radius: 15px;
+  background:
+    radial-gradient(ellipse at 100% 0, #3675d10b, transparent 47%),
+    linear-gradient(145deg, #141d2b, #101722 75%);
+  box-shadow: 0 14px 36px #0207114d, inset 0 1px #ffffff08;
+}
+.app-shell:has(.workspace > .stats-grid) .stations-panel,
+.app-shell:has(.workspace > .stats-grid) .revenue-panel,
+.app-shell:has(.workspace > .stats-grid) .activity-panel,
+.app-shell:has(.workspace > .stats-grid) .quick-panel,
+.app-shell:has(.workspace > .stats-grid) .incoming-bookings {
+  padding: clamp(17px, 2vw, 24px);
+}
+.app-shell:has(.workspace > .stats-grid) .panel-heading h3,
+.app-shell:has(.workspace > .stats-grid) .quick-panel h3 {
+  font-size: 1.08rem;
+  letter-spacing: -.025em;
+}
+.app-shell:has(.workspace > .stats-grid) .station-overview-grid > div {
+  min-height: 88px;
+  align-content: center;
+  border-color: #7085a51c;
+  border-radius: 11px;
+  background: linear-gradient(145deg, #192438, #141c2a);
+}
+.app-shell:has(.workspace > .stats-grid) .station-overview-grid strong {
+  color: #83b4ff;
+  font-size: 1.55rem;
+}
+.app-shell:has(.workspace > .stats-grid) .station-overview-grid span {
+  color: #91a1b9;
+}
+.app-shell:has(.workspace > .stats-grid) .station-overview-note {
+  margin-top: 17px;
+  line-height: 1.5;
+}
+.app-shell:has(.workspace > .stats-grid) .revenue-total strong {
+  font-size: clamp(1.7rem, 3vw, 2.2rem);
+  letter-spacing: -.04em;
+}
+.app-shell:has(.workspace > .stats-grid) .revenue-panel .analytics-chart {
+  border-color: #7793bc1c;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #182438, #101722 90%);
+}
+.app-shell:has(.workspace > .stats-grid) .revenue-legend {
+  gap: 10px 15px;
+}
+.app-shell:has(.workspace > .stats-grid) .activity-row {
+  min-height: 47px;
+  border-bottom-color: #7187aa1c;
+}
+.app-shell:has(.workspace > .stats-grid) .quick-panel button {
+  min-height: 44px;
+  border-color: #7589a51f;
+  border-radius: 9px;
+  background: linear-gradient(100deg, #1b2638, #151e2c);
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+.app-shell:has(.workspace > .stats-grid) .quick-panel button:hover {
+  transform: translateX(2px);
+  border-color: #4a93f866;
+  background: linear-gradient(100deg, #203553, #18243a);
+}
+.app-shell:has(.workspace > .stats-grid) .incoming-bookings {
+  border-color: #638de533;
+  background:
+    radial-gradient(ellipse at 100% 0, #5068ff14, transparent 42%),
+    linear-gradient(145deg, #151f31, #101722 75%);
+}
+.app-shell:has(.workspace > .stats-grid) .incoming-booking-row {
+  border-top-color: #7187aa24;
+}
+.app-shell:has(.workspace > .stats-grid) .incoming-booking-row .button {
+  border-radius: 8px;
+}
+.app-shell:has(.workspace > .stats-grid) .page-footer {
+  padding-top: 24px;
+  color: #71809a;
+}
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .page-toolbar {
+  border-color: #91b9e8;
+  background:
+    radial-gradient(ellipse at 95% 0, #cfddff 0, transparent 42%),
+    linear-gradient(112deg, #e6f1ff, #dceaff 55%, #ece8ff);
+  box-shadow: 0 15px 38px #355c8a1c, inset 0 1px #ffffffb3;
+}
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .page-toolbar .breadcrumb,
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .page-toolbar h2 {
+  color: #17283e;
+}
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .occupancy-indicator {
+  border-color: #4f94d65c;
+  color: #12619b;
+  background: #ffffffa6;
+}
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .page-toolbar select {
+  border-color: #a6bad1;
+  color: #17283e;
+  background-color: #ffffffd9;
+}
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .stat-card {
+  border-color: #d3deec;
+  background:
+    radial-gradient(ellipse at 100% 0, #4a91ff12, transparent 55%),
+    linear-gradient(145deg, #ffffff, #f7faff);
+  box-shadow: 0 10px 28px #203b5a12;
+}
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .stat-card > span,
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .stat-card small {
+  color: #64758a;
+}
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .panel {
+  border-color: #d5dfeb;
+  background: linear-gradient(145deg, #ffffff, #f8faff);
+  box-shadow: 0 10px 28px #203b5a12;
+}
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .station-overview-grid > div,
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .revenue-panel .analytics-chart,
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .quick-panel button {
+  border-color: #dce5ef;
+  background: linear-gradient(145deg, #f5f8fc, #ffffff);
+}
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .station-overview-grid span {
+  color: #617286;
+}
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .quick-panel button:hover {
+  background: #edf5ff;
+}
+:root[data-theme='light'] .app-shell:has(.workspace > .stats-grid) .incoming-bookings {
+  border-color: #b9d1ef;
+}
+@media (max-width: 760px) {
+  .app-shell:has(.workspace > .stats-grid) .workspace {
+    padding-top: 20px;
+  }
+  .app-shell:has(.workspace > .stats-grid) .page-toolbar {
+    min-height: 0;
+    align-items: stretch;
+    border-radius: 14px;
+  }
+  .app-shell:has(.workspace > .stats-grid) .toolbar-actions {
+    flex-wrap: wrap;
+  }
+  .app-shell:has(.workspace > .stats-grid) .occupancy-indicator {
+    flex: 1 1 auto;
+  }
+  .app-shell:has(.workspace > .stats-grid) .station-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 450px) {
+  .app-shell:has(.workspace > .stats-grid) .page-toolbar {
+    padding: 19px 16px;
+  }
+  .app-shell:has(.workspace > .stats-grid) .toolbar-actions > * {
+    min-width: 0;
+  }
+  .app-shell:has(.workspace > .stats-grid) .stats-grid {
+    gap: 9px;
+  }
+  .app-shell:has(.workspace > .stats-grid) .stat-card {
+    min-height: 124px;
+    padding: 15px 14px;
+  }
+  .app-shell:has(.workspace > .stats-grid) .stat-card strong {
+    margin: 12px 0 6px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell:has(.workspace > .stats-grid) .stat-card,
+  .app-shell:has(.workspace > .stats-grid) .sidebar nav a,
+  .app-shell:has(.workspace > .stats-grid) .quick-panel button {
+    transition: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-showcase-copy,
+  .login-form-card,
+  .login-status-pulse,
+  .login-controller-art { animation: none; }
+}
+
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .topbar {
+  border-bottom-color: #7085a51c;
+  background: linear-gradient(100deg, #111a29f5, #0d1421f5);
+  box-shadow: 0 8px 26px #02071125;
+}
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .sidebar {
+  border-right-color: #7085a51c;
+  background: linear-gradient(180deg, #111a29, #0c121d 78%);
+}
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .sidebar nav a {
+  border-radius: 9px;
+}
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .sidebar nav a.active {
+  background: linear-gradient(100deg, #183253, #15243a);
+  box-shadow: inset 3px 0 #4894ff, 0 6px 18px #07111f66;
+}
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .workspace {
+  padding-top: 32px;
+}
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .page-toolbar {
+  min-height: 132px;
+  padding: 25px clamp(19px, 3vw, 32px);
+  border: 1px solid #7187aa24;
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse at 92% 0, #3c78d21c, transparent 39%),
+    linear-gradient(120deg, #151f31, #111a28 58%, #171a2c);
+  box-shadow: 0 16px 38px #02071140, inset 0 1px #ffffff08;
+}
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .page-toolbar h2 {
+  font-size: clamp(1.45rem, 2.4vw, 1.9rem);
+}
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .panel,
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .table-panel {
+  border-color: #7187aa24;
+  border-radius: 14px;
+  background:
+    radial-gradient(ellipse at 100% 0, #3675d10b, transparent 47%),
+    linear-gradient(145deg, #141d2b, #101722 78%);
+  box-shadow: 0 13px 34px #02071138, inset 0 1px #ffffff08;
+}
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .panel-heading h3,
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .session-history-title {
+  letter-spacing: -.025em;
+}
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .table-panel {
+  overflow-x: auto;
+}
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .table-header,
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .table-row {
+  border-bottom-color: #7187aa20;
+}
+.app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .table-row:hover {
+  background: #7aaeff08;
+}
+
+.app-shell:has(.workspace .session-controls-bar) .session-controls-bar,
+.app-shell:has(.workspace .report-toolbar) .report-toolbar {
+  border-color: #7085a530;
+  border-radius: 13px;
+  background: linear-gradient(140deg, #151f30, #111925);
+}
+.app-shell:has(.workspace .session-controls-bar) .session-management-header,
+.app-shell:has(.workspace .session-controls-bar) .session-row,
+.app-shell:has(.workspace .session-controls-bar) .session-history-header,
+.app-shell:has(.workspace .session-controls-bar) .session-history-row {
+  min-width: 960px;
+}
+.app-shell:has(.workspace .session-controls-bar) .session-action-list {
+  gap: 5px 9px;
+}
+.app-shell:has(.workspace .session-controls-bar) .session-history-title {
+  margin-top: 28px;
+  color: #e8f1ff;
+}
+
+.app-shell:has(.workspace .station-management-grid) .station-card {
+  padding: 16px;
+  border: 1px solid #5578a44d;
+  border-radius: 15px;
+  background:
+    radial-gradient(ellipse at 50% 0, #3675d117, transparent 55%),
+    linear-gradient(150deg, #182438, #101722 77%);
+  box-shadow: 0 13px 32px #02071155, inset 0 1px #ffffff0a;
+}
+.app-shell:has(.workspace .station-management-grid) .station-card:hover {
+  border-color: #4a93f866;
+  box-shadow: 0 17px 38px #02071170, 0 0 22px #3278ff10;
+}
+.app-shell:has(.workspace .station-management-grid) .station-details-trigger {
+  border-radius: 8px;
+}
+
+.app-shell:has(.workspace .report-toolbar) .report-toolbar {
+  gap: 14px;
+  padding: 19px;
+}
+.app-shell:has(.workspace .report-toolbar) .report-stats {
+  margin-top: 17px;
+}
+.app-shell:has(.workspace .report-toolbar) .report-breakdown-grid span {
+  min-height: 50px;
+  align-items: center;
+  border-color: #7187aa24;
+  border-radius: 9px;
+  background: linear-gradient(140deg, #192438, #141c2a);
+}
+.app-shell:has(.workspace .report-toolbar) .report-table-panel {
+  border-color: #7187aa24;
+}
+
+.app-shell:has(.workspace .product-image-preview) .modal-form.panel,
+.app-shell:has(.workspace .shop-settings-form) .shop-settings-form,
+.app-shell:has(.workspace .expense-form) .expense-form {
+  border-color: #7187aa2e;
+}
+.app-shell:has(.workspace .product-image-preview) .table-row {
+  min-width: 760px;
+}
+.app-shell:has(.workspace .product-image-preview) .product-image-preview {
+  border-color: #7187aa30;
+  border-radius: 10px;
+  background: linear-gradient(140deg, #1a2639, #141c29);
+}
+.app-shell:has(.workspace .shop-settings-form) .settings-card {
+  border-color: #7187aa24;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #151f30, #101722);
+}
+.app-shell:has(.workspace .shop-settings-form) .settings-grid {
+  align-items: stretch;
+}
+
+.app-shell:has(.workspace .pos-layout) .product-picker,
+.app-shell:has(.workspace .pos-layout) .checkout {
+  border-color: #7187aa2e;
+  border-radius: 15px;
+}
+.app-shell:has(.workspace .pos-layout) .product-grid {
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 12px;
+}
+.app-shell:has(.workspace .pos-layout) .product-grid button {
+  min-width: 0;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #1a2639, #141c29);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.app-shell:has(.workspace .pos-layout) .product-grid button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: #4a93f866;
+  box-shadow: 0 9px 22px #02071155;
+}
+.app-shell:has(.workspace .pos-layout) .checkout {
+  background:
+    radial-gradient(ellipse at 90% 0, #1687ff14, transparent 48%),
+    linear-gradient(145deg, #151f30, #101722);
+}
+
+.app-shell:has(.workspace .reservation-dashboard) .reservation-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 13px;
+  margin-bottom: 18px;
+}
+.app-shell:has(.workspace .reservation-dashboard) .reservation-metrics .stat-card {
+  min-width: 0;
+  min-height: 128px;
+  padding: 18px;
+  border: 1px solid #7187aa24;
+  border-radius: 13px;
+  background:
+    radial-gradient(ellipse at 100% 0, #438bff10, transparent 55%),
+    linear-gradient(145deg, #151e2f, #101722 78%);
+  box-shadow: 0 12px 30px #02071145;
+}
+.app-shell:has(.workspace .reservation-dashboard) .reservation-calendar {
+  padding: clamp(16px, 2vw, 23px);
+}
+.app-shell:has(.workspace .reservation-dashboard) .reservation-toolbar-heading {
+  margin-bottom: 17px;
+}
+.app-shell:has(.workspace .reservation-dashboard) .reservation-filters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  align-items: end;
+  gap: 11px;
+  margin-bottom: 16px;
+}
+.app-shell:has(.workspace .reservation-dashboard) .reservation-filters label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--muted);
+  font-size: .64rem;
+}
+.app-shell:has(.workspace .reservation-dashboard) .reservation-filters input,
+.app-shell:has(.workspace .reservation-dashboard) .reservation-filters select {
+  width: 100%;
+  min-width: 0;
+}
+.app-shell:has(.workspace .reservation-dashboard) .view-switch {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 38px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #101927;
+}
+.app-shell:has(.workspace .reservation-dashboard) .view-switch button {
+  min-height: 29px;
+  flex: 1;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+  font-size: .64rem;
+}
+.app-shell:has(.workspace .reservation-dashboard) .view-switch button.active {
+  color: #eaf3ff;
+  background: #24436a;
+  box-shadow: inset 0 0 0 1px #5b9cff55;
+}
+.app-shell:has(.workspace .reservation-dashboard) .reservation-table .table-header,
+.app-shell:has(.workspace .reservation-dashboard) .managed-reservation-row {
+  min-width: 1160px;
+  grid-template-columns: 1.3fr .8fr 1fr .55fr .7fr .8fr .8fr 1.8fr;
+}
+.app-shell:has(.workspace .reservation-dashboard) .managed-reservation-row {
+  min-height: 72px;
+}
+.app-shell:has(.workspace .reservation-dashboard) .managed-reservation-row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: .6rem;
+}
+.app-shell:has(.workspace .reservation-dashboard) .reservation-reference {
+  display: grid;
+  min-width: 0;
+  justify-items: start;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  color: #9dc8ff;
+  background: transparent;
+  text-align: left;
+}
+.app-shell:has(.workspace .reservation-dashboard) .reservation-reference small {
+  color: var(--muted);
+  font-weight: 400;
+}
+.app-shell:has(.workspace .reservation-dashboard) .reservation-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.app-shell:has(.workspace .reservation-dashboard) .reservation-row-actions .text-button {
+  padding: 3px 0;
+}
+.app-shell:has(.workspace .reservation-dashboard) .reservation-empty-state {
+  display: grid;
+  min-height: 150px;
+  place-items: center;
+  color: var(--muted);
+  font-size: .75rem;
+}
+
+.app-shell:has(.workspace .expense-form) .expense-form {
+  border-radius: 14px;
+  background: linear-gradient(145deg, #151f30, #101722);
+}
+.app-shell:has(.workspace .expense-form) .expense-form .button {
+  min-height: 41px;
+  border-radius: 8px;
+}
+
+:root[data-theme='light'] .app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) {
+  --bg: #f3f6fb;
+  --panel: #ffffff;
+  --panel-2: #edf3fa;
+  --line: #d7e0eb;
+  --text: #19283b;
+  --muted: #62748a;
+}
+:root[data-theme='light'] .app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .topbar {
+  border-bottom-color: #d7e0eb;
+  background: #ffffffed;
+}
+:root[data-theme='light'] .app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .sidebar {
+  border-right-color: #d7e0eb;
+  background: linear-gradient(180deg, #ffffff, #f3f6fb);
+}
+:root[data-theme='light'] .app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .sidebar nav a:hover,
+:root[data-theme='light'] .app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .sidebar nav a.active {
+  color: #19304b;
+  background: #e7f0fc;
+}
+:root[data-theme='light'] .app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .page-toolbar,
+:root[data-theme='light'] .app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .panel,
+:root[data-theme='light'] .app-shell:is(
+  :has(.workspace .session-controls-bar),
+  :has(.workspace .station-management-grid),
+  :has(.workspace .report-toolbar),
+  :has(.workspace .product-image-preview),
+  :has(.workspace .shop-settings-form),
+  :has(.workspace .pos-layout),
+  :has(.workspace .reservation-dashboard),
+  :has(.workspace .expense-form)
+) .table-panel,
+:root[data-theme='light'] .app-shell:has(.workspace .reservation-dashboard) .reservation-metrics .stat-card {
+  border-color: #d4dfec;
+  color: #19283b;
+  background: linear-gradient(145deg, #ffffff, #f5f8fc);
+  box-shadow: 0 10px 26px #27466b12;
+}
+:root[data-theme='light'] .app-shell:has(.workspace .station-management-grid) .station-card,
+:root[data-theme='light'] .app-shell:has(.workspace .pos-layout) .checkout,
+:root[data-theme='light'] .app-shell:has(.workspace .pos-layout) .product-grid button,
+:root[data-theme='light'] .app-shell:has(.workspace .shop-settings-form) .settings-card,
+:root[data-theme='light'] .app-shell:has(.workspace .session-controls-bar) .session-controls-bar,
+:root[data-theme='light'] .app-shell:has(.workspace .report-toolbar) .report-toolbar,
+:root[data-theme='light'] .app-shell:has(.workspace .expense-form) .expense-form {
+  border-color: #d4dfec;
+  color: #19283b;
+  background: linear-gradient(145deg, #ffffff, #f5f8fc);
+}
+:root[data-theme='light'] .app-shell:has(.workspace .reservation-dashboard) .view-switch {
+  background: #edf3fa;
+}
+:root[data-theme='light'] .app-shell:has(.workspace .reservation-dashboard) .view-switch button.active {
+  color: #174b84;
+  background: #dcecff;
+}
+:root[data-theme='light'] .app-shell:has(.workspace .reservation-dashboard) .reservation-reference {
+  color: #1768b1;
+}
+:root[data-theme='light'] .app-shell:has(.workspace .session-controls-bar) .session-history-title {
+  color: #19283b;
+}
+:root[data-theme='light'] .app-shell:has(.workspace .report-toolbar) .report-breakdown-grid span,
+:root[data-theme='light'] .app-shell:has(.workspace .product-image-preview) .product-image-preview {
+  border-color: #d7e0eb;
+  background: #f4f7fb;
+}
+
+@media (max-width: 900px) {
+  .app-shell:has(.workspace .reservation-dashboard) .reservation-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .app-shell:has(.workspace .reservation-dashboard) .reservation-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .app-shell:is(
+    :has(.workspace .session-controls-bar),
+    :has(.workspace .station-management-grid),
+    :has(.workspace .report-toolbar),
+    :has(.workspace .product-image-preview),
+    :has(.workspace .shop-settings-form),
+    :has(.workspace .pos-layout),
+    :has(.workspace .reservation-dashboard),
+    :has(.workspace .expense-form)
+  ) .workspace {
+    padding-top: 20px;
+  }
+  .app-shell:is(
+    :has(.workspace .session-controls-bar),
+    :has(.workspace .station-management-grid),
+    :has(.workspace .report-toolbar),
+    :has(.workspace .product-image-preview),
+    :has(.workspace .shop-settings-form),
+    :has(.workspace .pos-layout),
+    :has(.workspace .reservation-dashboard),
+    :has(.workspace .expense-form)
+  ) .page-toolbar {
+    min-height: 0;
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 20px;
+  }
+  .app-shell:has(.workspace .reservation-dashboard) .reservation-toolbar-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .app-shell:has(.workspace .reservation-dashboard) .reservation-toolbar-heading .button {
+    width: 100%;
+  }
+  .app-shell:has(.workspace .report-toolbar) .report-table-panel {
+    padding: 15px;
+  }
+}
+@media (max-width: 600px) {
+  .app-shell:has(.workspace .pos-layout) .pos-layout,
+  .app-shell:has(.workspace .shop-settings-form) .settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app-shell:has(.workspace .reservation-dashboard) .reservation-metrics {
+    gap: 9px;
+  }
+  .app-shell:has(.workspace .reservation-dashboard) .reservation-metrics .stat-card {
+    min-height: 116px;
+    padding: 14px;
+  }
+  .app-shell:has(.workspace .reservation-dashboard) .reservation-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app-shell:has(.workspace .report-toolbar) .report-breakdown-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell:has(.workspace .station-management-grid) .station-card,
+  .app-shell:has(.workspace .pos-layout) .product-grid button {
+    transition: none;
+  }
+}
+
+.sidebar:not(.sidebar-open) nav a {
+  justify-content: center;
+  padding: 11px 8px;
+}
+.sidebar:not(.sidebar-open) nav a > span:not(.sidebar-nav-icon) {
+  display: none;
+}
+.sidebar-nav-icon {
+  display: grid;
+  min-width: 20px;
+  place-items: center;
+  font-size: 1rem;
+}
+.sidebar:not(.sidebar-open) nav a.active {
+  box-shadow: inset 0 -2px var(--lime);
+}
+.dashboard-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.stations-overview-panel {
+  margin: 0 0 16px;
+  padding: 21px;
+  border-color: #7187aa24;
+  border-radius: 15px;
+  background:
+    radial-gradient(ellipse at 92% 0, #1687ff12, transparent 38%),
+    linear-gradient(145deg, var(--panel), var(--bg));
+}
+.station-count-playing strong { color: var(--cyan); }
+.station-count-available strong { color: var(--lime); }
+.station-count-maintenance strong { color: var(--orange); }
+.station-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.station-preview-card {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  color: var(--text);
+  background: linear-gradient(155deg, #1a2430, #10151c 72%);
+  box-shadow: 0 10px 24px #0003, inset 0 1px #ffffff08;
+  text-align: left;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.station-preview-card:hover,
+.station-preview-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: #1687ff80;
+  box-shadow: 0 15px 32px #0005, 0 0 20px #1687ff12;
+}
+.station-preview-card:focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: 3px;
+}
+.station-preview-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.station-preview-top > strong {
+  overflow: hidden;
+  font: 600 .9rem 'Space Grotesk';
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.station-preview-screen {
+  display: grid;
+  min-height: 92px;
+  align-content: center;
+  gap: 8px;
+  padding: 14px;
+  border: 4px solid #303a47;
+  border-radius: 11px;
+  background: radial-gradient(ellipse at 50% 20%, #273841, #0b1117 78%);
+  box-shadow: inset 0 0 22px #0009, 0 4px 0 #0a0d12;
+}
+.station-preview-screen > span {
+  color: var(--cyan);
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.station-preview-screen > strong {
+  overflow: hidden;
+  font-size: .75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.station-preview-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: .64rem;
+}
+.station-preview-meta > :last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.station-preview-meta b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.station-preview-card.station-playing .station-preview-screen { border-color: #3f91ad; }
+.station-preview-card.station-available .station-preview-screen { border-color: #2576bf; }
+.station-preview-card.station-maintenance .station-preview-screen { border-color: #59636e; }
+.station-preview-card.station-reserved .station-preview-screen { border-color: #66569b; }
+.station-preview-card.station-paused .station-preview-screen { border-color: #8d7430; }
+.station-overview-empty { margin-top: 16px; }
+.operations-overview {
+  padding: 21px;
+}
+.operations-list {
+  display: grid;
+  gap: 5px;
+}
+.operations-list > button {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 4px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  color: var(--text);
+  background: transparent;
+  text-align: left;
+}
+.operations-list > button:hover { color: var(--lime); }
+.operations-list > button > span:nth-child(2) { display: grid; gap: 4px; }
+.operations-list strong { font-size: .72rem; }
+.operations-list small { color: var(--muted); font-size: .62rem; }
+.operation-count {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--muted);
+  background: var(--panel-2);
+  font-weight: 700;
+}
+.operation-count-active { color: var(--orange); background: #ffab671c; }
+.operation-count-unavailable { color: var(--muted); }
+.dashboard-hours {
+  display: grid;
+  grid-template-columns: minmax(120px, .35fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.dashboard-hours > div:first-child { display: grid; gap: 6px; }
+.dashboard-hours > div:first-child strong { font: 600 1.1rem 'Space Grotesk'; }
+.dashboard-hours .analytics-chart-legend { margin: 0; }
+.analytics-y-axis-label { font-size: 10px; }
+.report-visual-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+.report-visual-grid .analytics-chart-panel { min-width: 0; margin: 0; }
+.report-visual-grid .analytics-chart-featured { border-color: #1687ff3d; }
+.category-chart {
+  display: grid;
+  gap: 20px;
+  padding: 18px 4px;
+}
+.category-chart-row { display: grid; gap: 9px; }
+.category-chart-row > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: .7rem;
+}
+.category-chart-row strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.category-chart-track,
+.bucket-chart-track {
+  display: block;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--panel-2);
+}
+.category-chart-track { height: 8px; }
+.category-chart-bar { display: block; height: 100%; border-radius: inherit; }
+.category-chart-bar.lime { background: var(--lime); }
+.category-chart-bar.cyan { background: var(--cyan); }
+.category-chart-bar.purple { background: var(--purple); }
+.bucket-chart {
+  display: flex;
+  min-height: 230px;
+  align-items: end;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 10px 2px 0;
+}
+.bucket-chart-column {
+  display: grid;
+  min-width: 54px;
+  height: 210px;
+  grid-template-rows: 18px minmax(0, 1fr) 18px;
+  justify-items: center;
+  gap: 7px;
+}
+.bucket-chart-column > strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text);
+  font-size: .55rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bucket-chart-track {
+  display: flex;
+  width: 25px;
+  height: 100%;
+  align-items: end;
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.bucket-chart-track i {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--cyan), var(--lime));
+}
+.bucket-chart-column > small { color: var(--muted); font-size: .56rem; white-space: nowrap; }
+.settings-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 14px;
+}
+.station-create-note {
+  color: var(--muted);
+  font-size: .65rem;
+  line-height: 1.5;
+}
+:root[data-theme='light'] .station-preview-card {
+  border-color: var(--line);
+  color: var(--text);
+  background: linear-gradient(155deg, #ffffff, #f3f7fc);
+  box-shadow: 0 10px 24px #27466b12, inset 0 1px #ffffff;
+}
+:root[data-theme='light'] .station-preview-screen {
+  border-color: #bdc9d4;
+  background: radial-gradient(ellipse at 50% 20%, #e9f0f3, #dce5eb 78%);
+  box-shadow: inset 0 0 18px #344b5b1c, 0 4px 0 #c5d0d9;
+}
+:root[data-theme='light'] .station-preview-card.station-playing .station-preview-screen { border-color: #4c9be6; }
+:root[data-theme='light'] .station-preview-card.station-available .station-preview-screen { border-color: #5ba5e8; }
+:root[data-theme='light'] .station-preview-card.station-maintenance .station-preview-screen { border-color: #aab4be; }
+:root[data-theme='light'] .station-preview-card.station-reserved .station-preview-screen { border-color: #9c8cca; }
+:root[data-theme='light'] .station-preview-card.station-paused .station-preview-screen { border-color: #bea54c; }
+:root[data-theme='light'] .stations-overview-panel,
+:root[data-theme='light'] .operations-overview,
+:root[data-theme='light'] .report-visual-grid .panel {
+  color: var(--text);
+  background: var(--panel);
+}
+@media (max-width: 760px) {
+  .app-shell:has(.sidebar-open) { padding-left: 0; }
+  .sidebar:not(.sidebar-open) nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    margin-top: 12px;
+  }
+  .sidebar:not(.sidebar-open) nav a {
+    display: flex;
+    min-height: 56px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 7px 3px;
+    font-size: .59rem;
+    text-align: center;
+  }
+  .sidebar:not(.sidebar-open) nav a > span:not(.sidebar-nav-icon) {
+    display: block;
+    line-height: 1.15;
+    white-space: normal;
+  }
+  .sidebar:not(.sidebar-open) nav a { padding: 10px; }
+  .sidebar:not(.sidebar-open) nav a .sidebar-nav-icon { display: grid; }
+  .sidebar-open nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin-top: 14px; }
+  .sidebar-open nav a { flex: initial; }
+  .sidebar-open nav a > span:not(.sidebar-nav-icon) { display: block; }
+  .sidebar-open nav a .sidebar-nav-icon { display: grid; }
+  .sidebar:not(.sidebar-open) .sidebar-footer { display: none; }
+  .report-visual-grid { grid-template-columns: 1fr; }
+  .dashboard-hours { grid-template-columns: 1fr; }
+  .station-preview-grid { grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); }
+}
+@media (max-width: 450px) {
+  .sidebar:not(.sidebar-open) nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .topbar-actions .settings-shortcut { min-height: 32px; padding: 0 8px; }
+  .station-overview-panel { padding: 15px; }
+  .station-preview-grid { grid-template-columns: 1fr; }
+  .report-visual-grid .analytics-chart svg { min-height: 180px; }
+  .settings-form-actions { justify-content: stretch; }
+  .settings-form-actions .button { flex: 1 1 auto; }
+}
+.settings-shortcut { flex: 0 0 auto; }
+.settings-section-nav {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0 0 16px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  box-shadow: 0 8px 24px #0002;
+  backdrop-filter: blur(12px);
+}
+.settings-section-nav button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  font-size: .72rem;
+  font-weight: 600;
+  transition: color .18s ease, border-color .18s ease, background .18s ease;
+}
+.settings-section-nav button:hover,
+.settings-section-nav button:focus-visible {
+  border-color: var(--line);
+  color: var(--text);
+  background: var(--panel-2);
+}
+.settings-section-nav button:focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: 2px;
+}
+.settings-section {
+  scroll-margin-top: 76px;
+  margin-bottom: 18px;
+}
+.settings-section-heading {
+  margin: 7px 0 12px;
+}
+.settings-section-heading h3 {
+  margin: 6px 0 0;
+  font: 600 1.1rem 'Space Grotesk';
+}
+.settings-section-heading p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: .75rem;
+  line-height: 1.55;
+}
+.settings-form-section {
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.settings-form-section .settings-section-heading {
+  margin: 0 0 14px;
+}
+.settings-check-list {
+  display: grid;
+  gap: 12px;
+}
+.settings-check-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--text);
+  font-size: .76rem;
+}
+.settings-check-list input {
+  width: auto;
+  margin: 2px 0 0;
+  accent-color: var(--lime);
+}
+.current-account-card,
+.appearance-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.current-account-card > span:nth-child(2) {
+  flex: 1;
+}
+.current-account-card strong,
+.current-account-card small {
+  display: block;
+}
+.current-account-card small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: .68rem;
+}
+.appearance-controls {
+  margin: 14px 0;
+}
+.credit-management {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 20px;
+}
+.credit-management h3 {
+  font: 600 1.1rem 'Space Grotesk';
+}
+.credit-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 10px;
+}
+.credit-list {
+  display: grid;
+  gap: 8px;
+}
+.credit-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+}
+.credit-row > span {
+  flex: 1;
+}
+.credit-row strong,
+.credit-row small {
+  display: block;
+}
+.credit-row small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: .67rem;
+}
+.credit-payment {
+  width: min(140px, 30%);
+}
+.settings-section#settings-pricing {
+  display: block;
+}
+.settings-section#settings-pricing > .settings-card {
+  max-width: 760px;
+}
+.settings-advanced {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+}
+.settings-advanced summary {
+  color: var(--text);
+  cursor: pointer;
+  font-size: .75rem;
+  font-weight: 600;
+}
+.settings-advanced[open] summary {
+  margin-bottom: 2px;
+  color: var(--lime);
+}
+.settings-advanced label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: .68rem;
+}
+.station-session-live {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+  padding: 7px 9px;
+  border: 1px solid #45b7ff3a;
+  border-radius: 7px;
+  color: #bceaff !important;
+  background: #1687ff14;
+  font-variant-numeric: tabular-nums;
+}
+.station-session-live span {
+  font: 600 .79rem 'Space Grotesk';
+  letter-spacing: .035em;
+}
+.station-session-live b {
+  color: var(--cyan);
+  font-size: .67rem;
+  white-space: nowrap;
+}
+.session-bucket-chart .bucket-chart-track i {
+  background: linear-gradient(180deg, #45b7ff, #1687ff);
+}
+:root[data-theme='light'] .settings-section-nav {
+  border-color: #d5dfeb;
+  background: #fffffff0;
+  box-shadow: 0 8px 24px #203b5a12;
+}
+:root[data-theme='light'] .station-session-live {
+  border-color: #1687ff38;
+  color: #244b70 !important;
+  background: #e8f4ff;
+}
+@media (max-width: 760px) {
+  .settings-section-nav {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .settings-section-nav button {
+    padding: 0 8px;
+  }
+  .credit-form {
+    grid-template-columns: 1fr 1fr;
+  }
+  .credit-row {
+    flex-wrap: wrap;
+  }
+  .credit-row > span {
+    flex-basis: 100%;
+  }
+  .credit-payment {
+    flex: 1;
+    width: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .settings-section-nav button,
+  .station-preview-card {
+    transition: none;
+  }
+}
+.session-history-panel {
+  margin-top: 20px;
+  padding: 21px;
+}
+.session-history-panel .panel-heading {
+  margin-bottom: 14px;
+}
+.session-history-payment {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+}
+.session-history-payment .eyebrow {
+  margin-right: auto;
+}
+.reservation-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.reservation-load-error .text-button {
+  flex: 0 0 auto;
+}
+:root[data-theme='light'] .session-history-payment {
+  border-color: #d4dfec;
+  background: #f5f8fc;
+}
+@media (max-width: 760px) {
+  .session-history-panel {
+    padding: 16px;
+  }
+  .session-history-panel .panel-heading,
+  .session-history-payment,
+  .reservation-load-error {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

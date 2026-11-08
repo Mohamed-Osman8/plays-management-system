@@ -97,6 +97,89 @@ export default function Login() {
               <span className="login-status-pulse" aria-hidden="true" />
             </div>
           </div>
+          <div className="login-controller-art" aria-hidden="true">
+            <svg viewBox="0 0 760 470" role="presentation" focusable="false">
+              <defs>
+                <linearGradient id="pad-shell" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stopColor="#f4f8ff" />
+                  <stop offset=".22" stopColor="#bfcbdc" />
+                  <stop offset=".5" stopColor="#e9eef8" />
+                  <stop offset=".78" stopColor="#8494a9" />
+                  <stop offset="1" stopColor="#dce4f1" />
+                </linearGradient>
+                <linearGradient id="pad-face" x1=".15" y1="0" x2=".8" y2="1">
+                  <stop offset="0" stopColor="#29364b" />
+                  <stop offset=".45" stopColor="#121b2c" />
+                  <stop offset="1" stopColor="#080e19" />
+                </linearGradient>
+                <linearGradient id="pad-grip" x1="0" y1="0" x2=".8" y2="1">
+                  <stop offset="0" stopColor="#e7edf7" />
+                  <stop offset="1" stopColor="#9aa9be" />
+                </linearGradient>
+                <linearGradient id="pad-touch" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stopColor="#1c2a40" />
+                  <stop offset="1" stopColor="#080d17" />
+                </linearGradient>
+                <radialGradient id="pad-glow">
+                  <stop stopColor="#9d7cff" stopOpacity=".92" />
+                  <stop offset=".45" stopColor="#449dff" stopOpacity=".55" />
+                  <stop offset="1" stopColor="#49dfff" stopOpacity="0" />
+                </radialGradient>
+                <filter id="pad-shadow" x="-.3" y="-.4" width="1.7" height="1.9">
+                  <feGaussianBlur in="SourceAlpha" stdDeviation="13" />
+                  <feOffset dy="18" />
+                  <feComponentTransfer><feFuncA type="linear" slope=".54" /></feComponentTransfer>
+                  <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+                <filter id="pad-soft-glow" x="-.6" y="-.6" width="2.2" height="2.2">
+                  <feGaussianBlur stdDeviation="16" />
+                </filter>
+              </defs>
+              <ellipse cx="382" cy="292" rx="325" ry="115" fill="url(#pad-glow)" opacity=".68" filter="url(#pad-soft-glow)" />
+              <g filter="url(#pad-shadow)" transform="rotate(-8 380 230)">
+                <path d="M167 102c-31 0-58 21-70 51L42 294c-16 45 13 83 58 79l94-9 58-38h253l58 38 94 9c45 4 74-34 58-79l-55-141c-12-30-39-51-70-51h-70l-50 26H287l-50-26Z" fill="#64748a" opacity=".55" transform="translate(0 11)" />
+                <path d="M167 91c-31 0-58 21-70 51L42 283c-16 45 13 83 58 79l94-9 58-38h253l58 38 94 9c45 4 74-34 58-79l-55-141c-12-30-39-51-70-51h-70l-50 26H287l-50-26Z" fill="url(#pad-shell)" stroke="#f8fbff" strokeOpacity=".8" strokeWidth="3" />
+                <path d="M164 109c-22 0-43 16-52 40L63 278c-10 27 7 50 34 48l88-8 51-35h288l51 35 88 8c27 2 44-21 34-48l-49-129c-9-24-30-40-52-40h-55l-48 24H267l-48-24Z" fill="url(#pad-face)" stroke="#8292a8" strokeOpacity=".5" strokeWidth="2" />
+                <path d="M292 104h176l26 20-21 94H288l-21-94Z" fill="#111a2a" stroke="#71839a" strokeOpacity=".34" strokeWidth="2" />
+                <rect x="304" y="120" width="151" height="82" rx="22" fill="url(#pad-touch)" stroke="#91a2bc" strokeOpacity=".5" strokeWidth="3" />
+                <rect x="313" y="128" width="133" height="65" rx="17" fill="#111b2b" stroke="#eff4ff" strokeOpacity=".14" />
+                <path d="M329 180c25-25 57-31 106-39" fill="none" stroke="#59c8ff" strokeOpacity=".55" strokeWidth="3" />
+                <path d="M344 186c25-21 53-25 88-32" fill="none" stroke="#a57cff" strokeOpacity=".6" strokeWidth="2" />
+                <circle cx="380" cy="218" r="13" fill="#eaf4ff" stroke="#96a9c5" strokeWidth="3" />
+                <circle cx="380" cy="218" r="5" fill="#3ba9ff" />
+                <path d="M334 100h92" stroke="#d7e5f7" strokeWidth="5" strokeLinecap="round" opacity=".75" />
+                <path d="M333 207c-20 1-30 11-35 28" fill="none" stroke="#41c9ff" strokeWidth="5" strokeLinecap="round" opacity=".68" />
+                <path d="M427 207c20 1 30 11 35 28" fill="none" stroke="#a47aff" strokeWidth="5" strokeLinecap="round" opacity=".68" />
+                <g transform="translate(202 228)">
+                  <circle cx="0" cy="0" r="50" fill="#07101d" stroke="#52647d" strokeWidth="4" />
+                  <circle cx="0" cy="-4" r="34" fill="#1b283b" stroke="#07101a" strokeWidth="5" />
+                  <circle cx="0" cy="-7" r="25" fill="#101a29" stroke="#8da0b8" strokeOpacity=".45" strokeWidth="2" />
+                  <path d="M-11-24c6-6 17-8 25-2" fill="none" stroke="#f6fbff" strokeOpacity=".27" strokeWidth="4" strokeLinecap="round" />
+                  <circle cx="-13" cy="-17" r="3" fill="#5edcff" opacity=".8" />
+                </g>
+                <g transform="translate(558 228)">
+                  <circle cx="0" cy="0" r="50" fill="#07101d" stroke="#52647d" strokeWidth="4" />
+                  <circle cx="0" cy="-4" r="34" fill="#1b283b" stroke="#07101a" strokeWidth="5" />
+                  <circle cx="0" cy="-7" r="25" fill="#101a29" stroke="#8da0b8" strokeOpacity=".45" strokeWidth="2" />
+                  <path d="M-11-24c6-6 17-8 25-2" fill="none" stroke="#f6fbff" strokeOpacity=".27" strokeWidth="4" strokeLinecap="round" />
+                  <circle cx="-13" cy="-17" r="3" fill="#ad83ff" opacity=".85" />
+                </g>
+                <g transform="translate(125 197)" fill="#b9c9de">
+                  <rect x="-12" y="-40" width="24" height="80" rx="6" />
+                  <rect x="-40" y="-12" width="80" height="24" rx="6" />
+                  <circle r="7" fill="#eaf2ff" />
+                </g>
+                <g transform="translate(635 184)" fontFamily="Arial, sans-serif" fontSize="18" fontWeight="700" textAnchor="middle">
+                  <circle cy="-34" r="18" fill="#19273b" stroke="#9c7dff" strokeWidth="3" /><text y="-28" fill="#c6a9ff">△</text>
+                  <circle cx="-34" r="18" fill="#19273b" stroke="#5bd9ff" strokeWidth="3" /><text x="-34" y="6" fill="#73e4ff">□</text>
+                  <circle cx="34" r="18" fill="#19273b" stroke="#ff779f" strokeWidth="3" /><text x="34" y="6" fill="#ff91b0">○</text>
+                  <circle cy="34" r="18" fill="#19273b" stroke="#78e0bc" strokeWidth="3" /><text y="40" fill="#86edca">×</text>
+                </g>
+                <path d="M282 102c20-12 46-17 72-17h52c26 0 52 5 72 17" fill="none" stroke="#f9fbff" strokeOpacity=".58" strokeWidth="4" strokeLinecap="round" />
+                <path d="M105 306c-11 20-1 35 17 34l55-5m478-29c11 20 1 35-17 34l-55-5" fill="none" stroke="url(#pad-grip)" strokeWidth="11" strokeLinecap="round" opacity=".78" />
+              </g>
+            </svg>
+          </div>
           <p className="login-showcase-footer">PLAYSTATION GAME ZONE <i /> MANAGEMENT SYSTEM</p>
           <div className="login-orbit login-orbit-one" aria-hidden="true" />
           <div className="login-orbit login-orbit-two" aria-hidden="true" />

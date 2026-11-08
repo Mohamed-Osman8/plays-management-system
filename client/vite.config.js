@@ -3,15 +3,38 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+async function findApiTarget() {
+  const configuredPort = Number.parseInt(process.env.PLAYA_API_PORT || '5001', 10)
+  const firstPort = Number.isInteger(configuredPort) && configuredPort >= 1 && configuredPort <= 65535
+    ? configuredPort
+    : 5001
+
+  for (let offset = 0; offset < 12; offset += 1) {
+    const port = firstPort + offset
+    if (port > 65535) break
+    const target = `http://localhost:${port}`
+    try {
+      const response = await fetch(`${target}/api/health`, { signal: AbortSignal.timeout(500) })
+      if (!response.ok) continue
+      const health = await response.json()
+      if (health.service === 'playstation-game-zone-server') return target
+    } catch {
+      continue
+    }
+  }
+
+  return `http://localhost:${firstPort}`
+}
+
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(async ({ command }) => ({
   server: {
     host: '0.0.0.0',
     port: 5174,
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:5001',
+        target: command === 'serve' ? await findApiTarget() : 'http://localhost:5001',
         changeOrigin: true,
         configure(proxy) {
           proxy.on('proxyReq', (proxyRequest) => proxyRequest.removeHeader('origin'))
@@ -94,4 +117,4 @@ export default defineConfig({
       },
     }),
   ],
-})
+}))
