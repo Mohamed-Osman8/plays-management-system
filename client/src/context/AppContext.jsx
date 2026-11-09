@@ -287,7 +287,14 @@ export function AppProvider({ children }) {
         dispatch({ type: 'LOGOUT' })
         if (error.status === 401) dispatch({ type: 'LOGIN_FAILED' })
         if (error.lockoutUntil) dispatch({ type: 'LOGIN_LOCKOUT', lockoutUntil: error.lockoutUntil })
-        return { ok: false, message: error.message || 'Invalid email address or password.', remainingSeconds: error.remainingSeconds }
+        return {
+          ok: false,
+          code: error.code,
+          email: error.email,
+          shopName: error.shopName,
+          message: error.message || 'Invalid email address or password.',
+          remainingSeconds: error.remainingSeconds,
+        }
       }
     },
     addUser: async (user) => {

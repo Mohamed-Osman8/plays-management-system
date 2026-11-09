@@ -24,6 +24,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
+  const [pendingApproval, setPendingApproval] = useState(null)
   const [verificationMessage, setVerificationMessage] = useState(() => (
     new URLSearchParams(window.location.search).has('verifyEmail')
       ? 'Verifying your email address…'
@@ -46,7 +47,13 @@ export default function Login() {
     verifyEmailOnce(token)
       .then((result) => {
         clearVerificationToken()
-        if (active) setVerificationMessage(result.message || 'Email verified. Your shop is waiting for administrator approval.')
+        if (active) {
+          setVerificationMessage('')
+          setPendingApproval({
+            email: result.email || '',
+            shopName: result.shopName || '',
+          })
+        }
       })
       .catch((requestError) => {
         clearVerificationToken()
@@ -63,6 +70,13 @@ export default function Login() {
     try {
       const result = await login(form.email, form.password)
       if (!result.ok) {
+        if (result.code === 'SHOP_PENDING_APPROVAL') {
+          setPendingApproval({
+            email: result.email || form.email.trim(),
+            shopName: result.shopName || '',
+          })
+          return
+        }
         setError(result.message || 'Unable to sign in.')
         return
       }
@@ -186,6 +200,22 @@ export default function Login() {
         </section>
 
         <section className="login-form-side">
+          {pendingApproval ? (
+            <section className="login-form-card login-pending-approval" aria-labelledby="login-pending-heading">
+              <span className="eyebrow login-eyebrow">EMAIL VERIFIED · PENDING REVIEW</span>
+              <h2 id="login-pending-heading">Waiting for Approval?</h2>
+              <p className="login-form-intro">Your email has been verified successfully. Your game zone registration is waiting for administrator approval. Contact the administrator if you need assistance.</p>
+              {(pendingApproval.shopName || pendingApproval.email) && (
+                <dl className="login-pending-details">
+                  {pendingApproval.shopName && <><dt>Shop name</dt><dd>{pendingApproval.shopName}</dd></>}
+                  {pendingApproval.email && <><dt>Account email</dt><dd>{pendingApproval.email}</dd></>}
+                </dl>
+              )}
+              <a className="button button-primary login-submit login-contact-admin" href="tel:+251940867287">Contact Administrator <span aria-hidden="true">↗</span></a>
+              <p className="login-pending-note">Only the administrator can approve your account. Contacting the administrator does not approve it automatically.</p>
+              <button className="login-create-shop" type="button" onClick={() => setPendingApproval(null)}>Back to sign in</button>
+            </section>
+          ) : (
           <form className="login-form-card" onSubmit={submit}>
             <div className="login-mobile-brand"><BrandMark /><span>PLAYSTATION <b>GAME ZONE</b></span></div>
             <span className="eyebrow login-eyebrow">SECURE STAFF ACCESS</span>
@@ -241,6 +271,7 @@ export default function Login() {
               <span>Need help? Contact your administrator.</span>
             </div>
           </form>
+          )}
           <span className="login-copyright">© 2026 PLAYSTATION GAME ZONE</span>
         </section>
       </div>

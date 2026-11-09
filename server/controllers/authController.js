@@ -302,7 +302,10 @@ export async function verifyEmail(req, res, next) {
     }
 
     return res.json({
-      message: 'Email verified. Your shop is now waiting for administrator approval. You can sign in once it is approved.'
+      message: 'Email verified. Your shop is now waiting for administrator approval. You can sign in once it is approved.',
+      pendingApproval: true,
+      email: user.email,
+      shopName: shop.name
     })
   } catch (error) {
     return next(error)
@@ -421,7 +424,7 @@ export async function login(req, res, next) {
     }
 
     if (user.shopId) {
-      const shop = await Shop.findById(user.shopId).select('isApproved status')
+      const shop = await Shop.findById(user.shopId).select('isApproved status name')
       if (!shop) {
         return res.status(403).json({ code: 'SHOP_NOT_ACTIVE', message: 'This account is not linked to an active shop.' })
       }
@@ -429,7 +432,12 @@ export async function login(req, res, next) {
         return res.status(403).json({ code: 'SHOP_INACTIVE', message: INACTIVE_SHOP_MESSAGE })
       }
       if (shop.isApproved === false || shop.status === 'pending') {
-        return res.status(403).json({ code: 'SHOP_PENDING_APPROVAL', message: PENDING_SHOP_MESSAGE })
+        return res.status(403).json({
+          code: 'SHOP_PENDING_APPROVAL',
+          message: PENDING_SHOP_MESSAGE,
+          email: user.email,
+          shopName: shop.name
+        })
       }
     }
 
